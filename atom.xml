@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>CHEN&#39;s BLOG</title>
+  
+  <subtitle>An Orange Who Love Carrot</subtitle>
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="http://yoursite.com/"/>
+  <updated>2019-03-15T01:58:08.700Z</updated>
+  <id>http://yoursite.com/</id>
+  
+  <author>
+    <name>CHEN</name>
+    
+  </author>
+  
+  <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>shell编程学习-持续更新</title>
+    <link href="http://yoursite.com/2019/03/06/shell%E7%BC%96%E7%A8%8B%E5%AD%A6%E4%B9%A0-%E6%8C%81%E7%BB%AD%E6%9B%B4%E6%96%B0/"/>
+    <id>http://yoursite.com/2019/03/06/shell编程学习-持续更新/</id>
+    <published>2019-03-05T16:00:00.000Z</published>
+    <updated>2019-03-15T01:58:08.700Z</updated>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          
+        
+      
+    
+    </summary>
+    
+      <category term="linux学习" scheme="http://yoursite.com/categories/linux%E5%AD%A6%E4%B9%A0/"/>
+    
+    
+      <category term="linux" scheme="http://yoursite.com/tags/linux/"/>
+    
+      <category term="debug" scheme="http://yoursite.com/tags/debug/"/>
+    
+      <category term="shell" scheme="http://yoursite.com/tags/shell/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Linux指令的标准输入，输出及错误——2&gt;&amp;1</title>
+    <link href="http://yoursite.com/2019/02/28/Linux%E6%8C%87%E4%BB%A4%E6%A0%87%E5%87%86%E8%BE%93%E5%85%A5%E3%80%81%E8%BE%93%E5%87%BA%E5%8F%8A%E9%94%99%E8%AF%AF/"/>
+    <id>http://yoursite.com/2019/02/28/Linux指令标准输入、输出及错误/</id>
+    <published>2019-02-27T16:00:00.000Z</published>
+    <updated>2019-03-15T01:38:41.041Z</updated>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          
+        
+      
+    
+    </summary>
+    
+      <category term="linux学习" scheme="http://yoursite.com/categories/linux%E5%AD%A6%E4%B9%A0/"/>
+    
+    
+      <category term="linux" scheme="http://yoursite.com/tags/linux/"/>
+    
+      <category term="debug" scheme="http://yoursite.com/tags/debug/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Linux下的screen指令使用(相当于多任务窗口)</title>
+    <link href="http://yoursite.com/2018/11/13/Linux%E4%B8%8B%E7%9A%84screen%E6%8C%87%E4%BB%A4%E4%BD%BF%E7%94%A8(%E7%9B%B8%E5%BD%93%E4%BA%8E%E5%A4%9A%E4%BB%BB%E5%8A%A1%E7%AA%97%E5%8F%A3)/"/>
+    <id>http://yoursite.com/2018/11/13/Linux下的screen指令使用(相当于多任务窗口)/</id>
+    <published>2018-11-12T16:00:00.000Z</published>
+    <updated>2019-03-15T02:52:49.725Z</updated>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          
+        
+      
+    
+    </summary>
+    
+      <category term="linux学习" scheme="http://yoursite.com/categories/linux%E5%AD%A6%E4%B9%A0/"/>
+    
+    
+      <category term="linux" scheme="http://yoursite.com/tags/linux/"/>
+    
+      <category term="tools" scheme="http://yoursite.com/tags/tools/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Hello World</title>
+    <link href="http://yoursite.com/2017/01/01/hello-world/"/>
+    <id>http://yoursite.com/2017/01/01/hello-world/</id>
+    <published>2016-12-31T16:00:00.000Z</published>
+    <updated>2019-03-15T01:41:26.666Z</updated>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          
+        
+      
+    
+    </summary>
+    
+    
+  </entry>
+  
+</feed>
