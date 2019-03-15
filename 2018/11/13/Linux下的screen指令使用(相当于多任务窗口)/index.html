@@ -81,18 +81,18 @@
 
 
 
-<meta name="description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们">
+<meta name="description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？">
 <meta name="keywords" content="linux,tools">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Linux下的screen指令使用(相当于多任务窗口)">
 <meta property="og:url" content="http://yoursite.com/2018/11/13/Linux下的screen指令使用(相当于多任务窗口)/index.html">
 <meta property="og:site_name" content="CHEN&#39;s BLOG">
-<meta property="og:description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们">
+<meta property="og:description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-03-15T02:52:49.725Z">
+<meta property="og:updated_time" content="2019-03-15T11:49:47.460Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Linux下的screen指令使用(相当于多任务窗口)">
-<meta name="twitter:description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们">
+<meta name="twitter:description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？">
 
 
 
@@ -397,6 +397,7 @@
 
       
         <p>很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？</p>
+<a id="more"></a>
 <h3 id="当-然-不-是！"><a href="#当-然-不-是！" class="headerlink" title="当 然 不 是！"></a>当 然 不 是！</h3><p>我们强大的Linux系统怎么会容许这种低效的事情发生，神器screen呼之欲出，让我们看看screen为何物</p>
 <p>Screen是一款由GNU计划开发的用于命令行终端切换的自由软件。用户可以通过该软件同时连接多个本地或远程的命令行会话，并在其间自由切换。GNU Screen可以看作是窗口管理器的命令行界面版本。它提供了统一的管理多个会话的界面和相应的功能。</p>
 <h2 id="会话恢复"><a href="#会话恢复" class="headerlink" title="会话恢复"></a>会话恢复</h2><p>只要Screen本身没有终止，在其内部运行的会话都可以恢复。这一点对于远程登录的用户特别有用——即使网络连接中断，用户也不会失去对已经打开的命令行会话的控制。只要再次登录到主机上执行screen -r就可以恢复会话的运行。同样在暂时离开的时候，也可以执行分离命令detach，在保证里面的程序正常运行的情况下让Screen挂起（切换到后台）。这一点和图形界面下的VNC很相似。</p>

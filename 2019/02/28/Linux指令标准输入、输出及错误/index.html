@@ -81,18 +81,18 @@
 
 
 
-<meta name="description" content="今天在看chroot的时候，发现一个2&amp;gt;&amp;amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括：  2&amp;gt;&amp;amp;1的作用是将程序运行时的标准错误信息添加到标准输出中  具体内容具体碰到的指令是这样的 nohup c">
+<meta name="description" content="今天在看chroot的时候，发现一个2&amp;gt;&amp;amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括：  2&amp;gt;&amp;amp;1的作用是将程序运行时的标准错误信息添加到标准输出中">
 <meta name="keywords" content="linux,debug">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Linux指令的标准输入，输出及错误——2&gt;&amp;1">
 <meta property="og:url" content="http://yoursite.com/2019/02/28/Linux指令标准输入、输出及错误/index.html">
 <meta property="og:site_name" content="CHEN&#39;s BLOG">
-<meta property="og:description" content="今天在看chroot的时候，发现一个2&amp;gt;&amp;amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括：  2&amp;gt;&amp;amp;1的作用是将程序运行时的标准错误信息添加到标准输出中  具体内容具体碰到的指令是这样的 nohup c">
+<meta property="og:description" content="今天在看chroot的时候，发现一个2&amp;gt;&amp;amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括：  2&amp;gt;&amp;amp;1的作用是将程序运行时的标准错误信息添加到标准输出中">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-03-15T01:38:41.041Z">
+<meta property="og:updated_time" content="2019-03-15T11:50:03.660Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Linux指令的标准输入，输出及错误——2&gt;&amp;1">
-<meta name="twitter:description" content="今天在看chroot的时候，发现一个2&amp;gt;&amp;amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括：  2&amp;gt;&amp;amp;1的作用是将程序运行时的标准错误信息添加到标准输出中  具体内容具体碰到的指令是这样的 nohup c">
+<meta name="twitter:description" content="今天在看chroot的时候，发现一个2&amp;gt;&amp;amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括：  2&amp;gt;&amp;amp;1的作用是将程序运行时的标准错误信息添加到标准输出中">
 
 
 
@@ -401,6 +401,7 @@
 <blockquote>
 <p>2&gt;&amp;1的作用是将程序运行时的标准错误信息添加到标准输出中</p>
 </blockquote>
+<a id="more"></a>
 <h2 id="具体内容"><a href="#具体内容" class="headerlink" title="具体内容"></a>具体内容</h2><p>具体碰到的指令是这样的</p>
 <pre><code>nohup command&gt;/dev/null 2&gt;&amp;1 &amp;
 </code></pre><h3 id="先说几个基本的符号"><a href="#先说几个基本的符号" class="headerlink" title="先说几个基本的符号"></a>先说几个基本的符号</h3><ul>

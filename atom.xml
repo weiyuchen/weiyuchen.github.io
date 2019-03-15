@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
-  <updated>2019-03-15T01:58:08.700Z</updated>
+  <updated>2019-03-15T11:50:18.199Z</updated>
   <id>http://yoursite.com/</id>
   
   <author>
@@ -21,17 +21,11 @@
     <link href="http://yoursite.com/2019/03/06/shell%E7%BC%96%E7%A8%8B%E5%AD%A6%E4%B9%A0-%E6%8C%81%E7%BB%AD%E6%9B%B4%E6%96%B0/"/>
     <id>http://yoursite.com/2019/03/06/shell编程学习-持续更新/</id>
     <published>2019-03-05T16:00:00.000Z</published>
-    <updated>2019-03-15T01:58:08.700Z</updated>
+    <updated>2019-03-15T11:50:18.199Z</updated>
     
     <summary type="html">
     
-      
-      
-        
-        
-          
-        
-      
+      &lt;p&gt;现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。&lt;/p&gt;
     
     </summary>
     
@@ -51,17 +45,15 @@
     <link href="http://yoursite.com/2019/02/28/Linux%E6%8C%87%E4%BB%A4%E6%A0%87%E5%87%86%E8%BE%93%E5%85%A5%E3%80%81%E8%BE%93%E5%87%BA%E5%8F%8A%E9%94%99%E8%AF%AF/"/>
     <id>http://yoursite.com/2019/02/28/Linux指令标准输入、输出及错误/</id>
     <published>2019-02-27T16:00:00.000Z</published>
-    <updated>2019-03-15T01:38:41.041Z</updated>
+    <updated>2019-03-15T11:50:03.660Z</updated>
     
     <summary type="html">
     
-      
-      
-        
-        
-          
-        
-      
+      &lt;p&gt;今天在看chroot的时候，发现一个2&amp;gt;&amp;amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧&lt;/p&gt;
+&lt;h2 id=&quot;一句话概括&quot;&gt;&lt;a href=&quot;#一句话概括&quot; class=&quot;headerlink&quot; title=&quot;一句话概括&quot;&gt;&lt;/a&gt;一句话概括&lt;/h2&gt;&lt;p&gt;为了给赶时间的童鞋看，我就用一句话简要概括：&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;2&amp;gt;&amp;amp;1的作用是将程序运行时的标准错误信息添加到标准输出中&lt;/p&gt;
+&lt;/blockquote&gt;
     
     </summary>
     
@@ -79,17 +71,11 @@
     <link href="http://yoursite.com/2018/11/13/Linux%E4%B8%8B%E7%9A%84screen%E6%8C%87%E4%BB%A4%E4%BD%BF%E7%94%A8(%E7%9B%B8%E5%BD%93%E4%BA%8E%E5%A4%9A%E4%BB%BB%E5%8A%A1%E7%AA%97%E5%8F%A3)/"/>
     <id>http://yoursite.com/2018/11/13/Linux下的screen指令使用(相当于多任务窗口)/</id>
     <published>2018-11-12T16:00:00.000Z</published>
-    <updated>2019-03-15T02:52:49.725Z</updated>
+    <updated>2019-03-15T11:49:47.460Z</updated>
     
     <summary type="html">
     
-      
-      
-        
-        
-          
-        
-      
+      &lt;p&gt;很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？&lt;/p&gt;
     
     </summary>
     

@@ -81,18 +81,18 @@
 
 
 
-<meta name="description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if">
+<meta name="description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。">
 <meta name="keywords" content="linux,debug,shell">
 <meta property="og:type" content="article">
 <meta property="og:title" content="shell编程学习-持续更新">
 <meta property="og:url" content="http://yoursite.com/2019/03/06/shell编程学习-持续更新/index.html">
 <meta property="og:site_name" content="CHEN&#39;s BLOG">
-<meta property="og:description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if">
+<meta property="og:description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-03-15T01:58:08.700Z">
+<meta property="og:updated_time" content="2019-03-15T11:50:18.199Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="shell编程学习-持续更新">
-<meta name="twitter:description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if">
+<meta name="twitter:description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。">
 
 
 
@@ -397,6 +397,7 @@
 
       
         <p>现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。</p>
+<a id="more"></a>
 <h2 id="命令"><a href="#命令" class="headerlink" title="命令"></a>命令</h2><ul>
 <li><p>if命令<br>shell脚本中的流程控制不可为空，即if else fi中，如果else中没有操作，那么这个else就不要写；<br>if elif else fi:</p>
 <p>  if condition1<br>  then</p>
