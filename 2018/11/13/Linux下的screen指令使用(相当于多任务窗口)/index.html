@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="linux,debug,shell,">
+  <meta name="keywords" content="linux,tools,">
 
 
 
@@ -79,18 +79,18 @@
 
 
 
-<meta name="description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if">
-<meta name="keywords" content="linux,debug,shell">
+<meta name="description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们">
+<meta name="keywords" content="linux,tools">
 <meta property="og:type" content="article">
-<meta property="og:title" content="shell编程学习-持续更新">
-<meta property="og:url" content="http://yoursite.com/2019/03/06/shell编程学习-持续更新/index.html">
+<meta property="og:title" content="Linux下的screen指令使用(相当于多任务窗口)">
+<meta property="og:url" content="http://yoursite.com/2018/11/13/Linux下的screen指令使用(相当于多任务窗口)/index.html">
 <meta property="og:site_name" content="CHEN&#39;s BLOG">
-<meta property="og:description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if">
+<meta property="og:description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-03-15T01:58:08.700Z">
+<meta property="og:updated_time" content="2019-03-15T02:52:49.725Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="shell编程学习-持续更新">
-<meta name="twitter:description" content="现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if">
+<meta name="twitter:title" content="Linux下的screen指令使用(相当于多任务窗口)">
+<meta name="twitter:description" content="很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们">
 
 
 
@@ -120,13 +120,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2019/03/06/shell编程学习-持续更新/">
+  <link rel="canonical" href="http://yoursite.com/2018/11/13/Linux下的screen指令使用(相当于多任务窗口)/">
 
 
 
 
 
-  <title>shell编程学习-持续更新 | CHEN's BLOG</title>
+  <title>Linux下的screen指令使用(相当于多任务窗口) | CHEN's BLOG</title>
   
 
 
@@ -263,7 +263,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/03/06/shell编程学习-持续更新/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/13/Linux下的screen指令使用(相当于多任务窗口)/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="CHEN">
@@ -280,7 +280,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">shell编程学习-持续更新</h1>
+          <h1 class="post-title" itemprop="name headline">Linux下的screen指令使用(相当于多任务窗口)</h1>
         
 
         <div class="post-meta">
@@ -292,8 +292,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-03-06T00:00:00+08:00">
-                2019-03-06
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-13T00:00:00+08:00">
+                2018-11-13
               </time>
             
 
@@ -352,26 +352,18 @@
       
 
       
-        <p>现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。</p>
-<h2 id="命令"><a href="#命令" class="headerlink" title="命令"></a>命令</h2><ul>
-<li><p>if命令<br>shell脚本中的流程控制不可为空，即if else fi中，如果else中没有操作，那么这个else就不要写；<br>if elif else fi:</p>
-<p>  if condition1<br>  then</p>
-<pre><code>command
-</code></pre><p>  elif condition2<br>  then</p>
-<pre><code>command
-</code></pre><p>  else</p>
-<pre><code>command
-</code></pre><p>  fi</p>
-</li>
-</ul>
-<p>Condition中会有这样一些参数值用作if条件判断的内容，具体如下：<br>[ -a FILE ]    如果 FILE 存在则为真。<br>[ -b FILE ]    如果 FILE 存在且是一个块特殊文件则为真。<br>[ -c FILE ]    如果 FILE 存在且是一个字特殊文件则为真。<br>[ -d FILE ]    如果 FILE 存在且是一个目录则为真。<br>[ -e FILE ]    如果 FILE 存在则为真。<br>[ -f FILE ]    如果 FILE 存在且是一个普通文件则为真。<br>[ -g FILE ]    如果 FILE 存在且已经设置了SGID则为真。<br>[ -h FILE ]    如果 FILE 存在且是一个符号连接则为真。<br>[ -k FILE ]    如果 FILE 存在且已经设置了粘制位则为真。<br>[ -p FILE ]    如果 FILE 存在且是一个名字管道(F如果O)则为真。<br>[ -r FILE ]    如果 FILE 存在且是可读的则为真。<br>[ -s FILE ]    如果 FILE 存在且大小不为0则为真。<br>[ -t FD ]    如果文件描述符 FD 打开且指向一个终端则为真。<br>[ -u FILE ]    如果 FILE 存在且设置了SUID (set user ID)则为真。<br>[ -w FILE ]    如果 FILE 如果 FILE 存在且是可写的则为真。<br>[ -x FILE ]    如果 FILE 存在且是可执行的则为真。<br>[ -O FILE ]    如果 FILE 存在且属有效用户ID则为真。<br>[ -G FILE ]    如果 FILE 存在且属有效用户组则为真。<br>[ -L FILE ]    如果 FILE 存在且是一个符号连接则为真。<br>[ -N FILE ]    如果 FILE 存在 and has been mod如果ied since it was last read则为真。<br>[ -S FILE ]    如果 FILE 存在且是一个套接字则为真。<br>[ FILE1 -nt FILE2 ]    如果 FILE1 has been changed more recently thanFILE2 , or 如果 FILE1 FILE2 does not则为真。exists and<br>[ FILE1 -ot FILE2 ]    如果 FILE1 比 FILE2 要老, 或者 FILE2 存在且FILE1 不存在则为真。<br>[ FILE1 -ef FILE2 ]    如果 FILE1 和 FILE2 指向相同的设备和节点号则为真。<br>[ -o OPTIONNAME ]    如果 shell选项 “OPTIONNAME” 开启则为真。<br>[ -z STRING ]    “STRING” 的长度为零则为真。<br>[ -n STRING ] or [ STRING ]    “STRING” 的长度为非零 non-zero则为真。<br>[ STRING1 == STRING2 ]    如果2个字符串相同。 “=” may be used instead of “==” for strict POSIX compliance则为真。<br>[ STRING1 != STRING2 ]    如果字符串不相等则为真。<br>[ STRING1 &lt; STRING2 ]    如果 “STRING1” sorts before “STRING2” lexicographically in the current locale则为真。<br>[ STRING1 &gt; STRING2 ]    如果 “STRING1” sorts after “STRING2” lexicographically in the current locale则为真。<br>[ ARG1 OP ARG2 ]    “OP” is one of -eq , -ne , -lt , -le , -gt or -ge. These arithmetic binary operators return true if “ARG1” is equal to, not equal to, less than, less than or equal to, greater than, or greater than or equal to “ARG2”, respectively. “ARG1” and “ARG2” are integers.</p>
-<p>组合表达式的含义<br>[ ! EXPR ]            如果 EXPR 是false则为真。<br>[ ( EXPR ) ]        返回 EXPR 的值。这 样可以用来忽略正常的操作符优先级。<br>[ EXPR1 -a EXPR2 ]    如果 EXPR1 and EXPR2 全真则为真。<br>[ EXPR1 -o EXPR2 ]    如果 EXPR1 或者 EXPR2 为真则为真。</p>
-<ul>
-<li>set命令</li>
-<li>stty命令</li>
-<li>setenforce</li>
-</ul>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><p>bash shell if 命令参数说明：<a href="http://www.cnblogs.com/magicyang/archive/2011/08/26/2154551.html" target="_blank" rel="noopener">http://www.cnblogs.com/magicyang/archive/2011/08/26/2154551.html</a></p>
+        <p>很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？</p>
+<h3 id="当-然-不-是！"><a href="#当-然-不-是！" class="headerlink" title="当 然 不 是！"></a>当 然 不 是！</h3><p>我们强大的Linux系统怎么会容许这种低效的事情发生，神器screen呼之欲出，让我们看看screen为何物</p>
+<p>Screen是一款由GNU计划开发的用于命令行终端切换的自由软件。用户可以通过该软件同时连接多个本地或远程的命令行会话，并在其间自由切换。GNU Screen可以看作是窗口管理器的命令行界面版本。它提供了统一的管理多个会话的界面和相应的功能。</p>
+<h2 id="会话恢复"><a href="#会话恢复" class="headerlink" title="会话恢复"></a>会话恢复</h2><p>只要Screen本身没有终止，在其内部运行的会话都可以恢复。这一点对于远程登录的用户特别有用——即使网络连接中断，用户也不会失去对已经打开的命令行会话的控制。只要再次登录到主机上执行screen -r就可以恢复会话的运行。同样在暂时离开的时候，也可以执行分离命令detach，在保证里面的程序正常运行的情况下让Screen挂起（切换到后台）。这一点和图形界面下的VNC很相似。</p>
+<h2 id="多窗口（隐式）"><a href="#多窗口（隐式）" class="headerlink" title="多窗口（隐式）"></a>多窗口（隐式）</h2><p>在Screen环境下，所有的会话都独立的运行，并拥有各自的编号、输入、输出和窗口缓存。用户可以通过快捷键在不同的窗口下切换，并可以自由的重定向各个窗口的输入和输出。Screen实现了基本的文本操作，如复制粘贴等；还提供了类似滚动条的功能，可以查看窗口状况的历史记录。窗口还可以被分区和命名，还可以监视后台窗口的活动。 会话共享 Screen可以让一个或多个用户从不同终端多次登录一个会话，并共享会话的所有特性（比如可以看到完全相同的输出）。它同时提供了窗口访问权限的机制，可以对窗口进行密码保护。</p>
+<p>看出来它的强大了吗？</p>
+<p>是的没错，它可以在网络中断的时候依然坚持把任务执行结束，多么良心！！！</p>
+<p>那么我们该怎么使用它呢？</p>
+<p>首先当然是安装<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install screen</span><br></pre></td></tr></table></figure></p>
+<p>完成之后我们就可以愉快的装x了</p>
+<p>参考链接：</p>
+<p><a href="http://man.linuxde.net/screen" target="_blank" rel="noopener">screen命令_Linux screen 命令用法详解:用于命令行终端切换</a></p>
 
       
     </div>
@@ -391,9 +383,7 @@
           
             <a href="/tags/linux/" rel="tag"># linux</a>
           
-            <a href="/tags/debug/" rel="tag"># debug</a>
-          
-            <a href="/tags/shell/" rel="tag"># shell</a>
+            <a href="/tags/tools/" rel="tag"># tools</a>
           
         </div>
       
@@ -406,8 +396,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2019/02/28/Linux指令标准输入、输出及错误/" rel="next" title="Linux指令的标准输入，输出及错误——2>&1">
-                <i class="fa fa-chevron-left"></i> Linux指令的标准输入，输出及错误——2>&1
+              <a href="/2017/01/01/hello-world/" rel="next" title="Hello World">
+                <i class="fa fa-chevron-left"></i> Hello World
               </a>
             
           </div>
@@ -415,6 +405,10 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/02/28/Linux指令标准输入、输出及错误/" rel="prev" title="Linux指令的标准输入，输出及错误——2>&1">
+                Linux指令的标准输入，输出及错误——2>&1 <i class="fa fa-chevron-right"></i>
+              </a>
             
           </div>
         </div>
@@ -546,7 +540,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#命令"><span class="nav-number">1.</span> <span class="nav-text">命令</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考链接"><span class="nav-number">2.</span> <span class="nav-text">参考链接</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#当-然-不-是！"><span class="nav-number">1.</span> <span class="nav-text">当 然 不 是！</span></a></li></ol><li class="nav-item nav-level-2"><a class="nav-link" href="#会话恢复"><span class="nav-number"></span> <span class="nav-text">会话恢复</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#多窗口（隐式）"><span class="nav-number"></span> <span class="nav-text">多窗口（隐式）</span></a></li></div>
             
 
           </div>
