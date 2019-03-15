@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title><![CDATA[shell编程学习-持续更新]]></title>
+    <url>%2F2019%2F03%2F06%2Fshell%E7%BC%96%E7%A8%8B%E5%AD%A6%E4%B9%A0-%E6%8C%81%E7%BB%AD%E6%9B%B4%E6%96%B0%2F</url>
+    <content type="text"><![CDATA[现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if else fi中，如果else中没有操作，那么这个else就不要写；if elif else fi: if condition1 then command elif condition2 then command else command fi Condition中会有这样一些参数值用作if条件判断的内容，具体如下：[ -a FILE ] 如果 FILE 存在则为真。[ -b FILE ] 如果 FILE 存在且是一个块特殊文件则为真。[ -c FILE ] 如果 FILE 存在且是一个字特殊文件则为真。[ -d FILE ] 如果 FILE 存在且是一个目录则为真。[ -e FILE ] 如果 FILE 存在则为真。[ -f FILE ] 如果 FILE 存在且是一个普通文件则为真。[ -g FILE ] 如果 FILE 存在且已经设置了SGID则为真。[ -h FILE ] 如果 FILE 存在且是一个符号连接则为真。[ -k FILE ] 如果 FILE 存在且已经设置了粘制位则为真。[ -p FILE ] 如果 FILE 存在且是一个名字管道(F如果O)则为真。[ -r FILE ] 如果 FILE 存在且是可读的则为真。[ -s FILE ] 如果 FILE 存在且大小不为0则为真。[ -t FD ] 如果文件描述符 FD 打开且指向一个终端则为真。[ -u FILE ] 如果 FILE 存在且设置了SUID (set user ID)则为真。[ -w FILE ] 如果 FILE 如果 FILE 存在且是可写的则为真。[ -x FILE ] 如果 FILE 存在且是可执行的则为真。[ -O FILE ] 如果 FILE 存在且属有效用户ID则为真。[ -G FILE ] 如果 FILE 存在且属有效用户组则为真。[ -L FILE ] 如果 FILE 存在且是一个符号连接则为真。[ -N FILE ] 如果 FILE 存在 and has been mod如果ied since it was last read则为真。[ -S FILE ] 如果 FILE 存在且是一个套接字则为真。[ FILE1 -nt FILE2 ] 如果 FILE1 has been changed more recently thanFILE2 , or 如果 FILE1 FILE2 does not则为真。exists and[ FILE1 -ot FILE2 ] 如果 FILE1 比 FILE2 要老, 或者 FILE2 存在且FILE1 不存在则为真。[ FILE1 -ef FILE2 ] 如果 FILE1 和 FILE2 指向相同的设备和节点号则为真。[ -o OPTIONNAME ] 如果 shell选项 “OPTIONNAME” 开启则为真。[ -z STRING ] “STRING” 的长度为零则为真。[ -n STRING ] or [ STRING ] “STRING” 的长度为非零 non-zero则为真。[ STRING1 == STRING2 ] 如果2个字符串相同。 “=” may be used instead of “==” for strict POSIX compliance则为真。[ STRING1 != STRING2 ] 如果字符串不相等则为真。[ STRING1 &lt; STRING2 ] 如果 “STRING1” sorts before “STRING2” lexicographically in the current locale则为真。[ STRING1 &gt; STRING2 ] 如果 “STRING1” sorts after “STRING2” lexicographically in the current locale则为真。[ ARG1 OP ARG2 ] “OP” is one of -eq , -ne , -lt , -le , -gt or -ge. These arithmetic binary operators return true if “ARG1” is equal to, not equal to, less than, less than or equal to, greater than, or greater than or equal to “ARG2”, respectively. “ARG1” and “ARG2” are integers. 组合表达式的含义[ ! EXPR ] 如果 EXPR 是false则为真。[ ( EXPR ) ] 返回 EXPR 的值。这 样可以用来忽略正常的操作符优先级。[ EXPR1 -a EXPR2 ] 如果 EXPR1 and EXPR2 全真则为真。[ EXPR1 -o EXPR2 ] 如果 EXPR1 或者 EXPR2 为真则为真。 set命令 stty命令 setenforce 参考链接bash shell if 命令参数说明：http://www.cnblogs.com/magicyang/archive/2011/08/26/2154551.html]]></content>
+      <categories>
+        <category>linux学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>debug</tag>
+        <tag>shell</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Linux指令的标准输入，输出及错误——2>&1]]></title>
+    <url>%2F2019%2F02%2F28%2FLinux%E6%8C%87%E4%BB%A4%E6%A0%87%E5%87%86%E8%BE%93%E5%85%A5%E3%80%81%E8%BE%93%E5%87%BA%E5%8F%8A%E9%94%99%E8%AF%AF%2F</url>
+    <content type="text"><![CDATA[今天在看chroot的时候，发现一个2&gt;&amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括： 2&gt;&amp;1的作用是将程序运行时的标准错误信息添加到标准输出中 具体内容具体碰到的指令是这样的 nohup command&gt;/dev/null 2&gt;&amp;1 &amp; 先说几个基本的符号 /dev/null 表示空设备文件 0表示stdin标准输入 1表示stdout标准输出 2表示stderr标准错误 指令分析据此我们来对这条指令进行拆分，nohup是指当前用户和系统会话下的进程忽略响应HUP消息，&amp;是指该命令以后台job的形式运行。剩下的部分为： command&gt;/dev/null 2&gt;&amp;1 这条指令中，/dev/null表示的是一个空设备，也就是command的执行结果重定向到空设备中了，即执行结果不显示。对于前半条命令： command&gt;/dev/null 这条命令中，command是省略了1这个标准输出的，即这条指令相当于： command 1&gt;/dev/null，是command执行的结果标准输出1重定向至/dev/null中 最后我们来看2&gt;&amp;1的作用，由于我们在上面分析可以得出： command&gt;/dev/null等价于command 1&gt;/dev/null 据此可以得到，2&gt;&amp;1是将标准错误重定向至标准输出的位置，即2&gt;/dev/null，由于1并不能代表/dev/null，因此指令不是2&gt;1，而是2&gt;&amp;1，这里的&amp;1就是对标准输出位置的引用： 1&gt;/dev/null 2&gt;/dev/null 1&gt;/dev/null 2&gt;&amp;1 这两者的区别在于前者需要打开两次/dev/null，而第二种方式只需要打开文件一次，效率更高 参考链接Linux里的2&gt;&amp;1究竟是什么：https://blog.csdn.net/ggxiaobai/article/details/53507530]]></content>
+      <categories>
+        <category>linux学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>debug</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Linux下的screen指令使用(相当于多任务窗口)]]></title>
+    <url>%2F2018%2F11%2F13%2FLinux%E4%B8%8B%E7%9A%84screen%E6%8C%87%E4%BB%A4%E4%BD%BF%E7%94%A8(%E7%9B%B8%E5%BD%93%E4%BA%8E%E5%A4%9A%E4%BB%BB%E5%8A%A1%E7%AA%97%E5%8F%A3)%2F</url>
+    <content type="text"><![CDATA[很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们强大的Linux系统怎么会容许这种低效的事情发生，神器screen呼之欲出，让我们看看screen为何物 Screen是一款由GNU计划开发的用于命令行终端切换的自由软件。用户可以通过该软件同时连接多个本地或远程的命令行会话，并在其间自由切换。GNU Screen可以看作是窗口管理器的命令行界面版本。它提供了统一的管理多个会话的界面和相应的功能。 会话恢复只要Screen本身没有终止，在其内部运行的会话都可以恢复。这一点对于远程登录的用户特别有用——即使网络连接中断，用户也不会失去对已经打开的命令行会话的控制。只要再次登录到主机上执行screen -r就可以恢复会话的运行。同样在暂时离开的时候，也可以执行分离命令detach，在保证里面的程序正常运行的情况下让Screen挂起（切换到后台）。这一点和图形界面下的VNC很相似。 多窗口（隐式）在Screen环境下，所有的会话都独立的运行，并拥有各自的编号、输入、输出和窗口缓存。用户可以通过快捷键在不同的窗口下切换，并可以自由的重定向各个窗口的输入和输出。Screen实现了基本的文本操作，如复制粘贴等；还提供了类似滚动条的功能，可以查看窗口状况的历史记录。窗口还可以被分区和命名，还可以监视后台窗口的活动。 会话共享 Screen可以让一个或多个用户从不同终端多次登录一个会话，并共享会话的所有特性（比如可以看到完全相同的输出）。它同时提供了窗口访问权限的机制，可以对窗口进行密码保护。 看出来它的强大了吗？ 是的没错，它可以在网络中断的时候依然坚持把任务执行结束，多么良心！！！ 那么我们该怎么使用它呢？ 首先当然是安装1sudo apt-get install screen 完成之后我们就可以愉快的装x了 参考链接： screen命令_Linux screen 命令用法详解:用于命令行终端切换]]></content>
+      <categories>
+        <category>linux学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>tools</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Hello World]]></title>
+    <url>%2F2017%2F01%2F01%2Fhello-world%2F</url>
+    <content type="text"><![CDATA[Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick StartCreate a new post1$ hexo new "My New Post" More info: Writing Run server1$ hexo server More info: Server Generate static files1$ hexo generate More info: Generating Deploy to remote sites1$ hexo deploy More info: Deployment]]></content>
+  </entry>
+</search>
