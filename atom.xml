@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>CHEN&#39;s BLOG</title>
   
-  <subtitle>An Orange Who Love Carrot</subtitle>
+  <subtitle>An Orange Who Loves Carrot</subtitle>
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
@@ -34,9 +34,9 @@
     
       <category term="linux" scheme="http://yoursite.com/tags/linux/"/>
     
-      <category term="debug" scheme="http://yoursite.com/tags/debug/"/>
-    
       <category term="shell" scheme="http://yoursite.com/tags/shell/"/>
+    
+      <category term="debug" scheme="http://yoursite.com/tags/debug/"/>
     
   </entry>
   
