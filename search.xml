@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title><![CDATA[服务器环境 kvm + docker + gogs + nextcloud 构建]]></title>
+    <url>%2F2019%2F08%2F16%2F%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%BD%91%E7%BB%9C%E7%8E%AF%E5%A2%83%E8%AE%B0%E5%BD%95%2F</url>
+    <content type="text"><![CDATA[一句话概括对前段时间花了一些功夫在一台服务器上搭建的一个实验和应用环境过程和遇到的问题做一个记录 服务器配置如下 配置项 模式 大小 硬盘 raid5 11T 内存 64GB 这个服务器用来跑机器学习的实验可能不太合适，毕竟没有合适的显卡，因此我主要打算把它用来做一个其他实验的环境机器以及 git 服务器和本地网盘 实验环境基础为 —— kvm 和 docker git 服务器 —— gogs 本地网盘 —— nextcloud 云盘 阶段主要过程分成了三个阶段 安装服务器 server 系统 安装 kvm docker 实验环境 安装 git 服务器和本地网盘 安装 Ubuntu server 18.04本来是不想装这么新的系统的，但是奈何我本人比较喜欢新的东西，于是选择了 18.04 这个版本，有一些小坑暂时不表，这个过程相对比较常规，与在一台台式机上安装 Linux 系统无太大出入，只有一点不太一样，那就是硬盘的设置，服务器一般都有 raid 卡，需要对硬盘进行 raid 配置才能正常使用，有关这部分的内容我在这篇里有专门的讲述过，这里不再赘述。还有一点即是网络的配置，我本来是想直接修改 /etc/network/interface，然而我在 18.04 的系统下并没有看到这个文件，于是进行了一番检索之后才发现 18.04 的网络配置方式已经发生了改变，它使用了一种叫 netplan 的网络管理方式，有关于这个新的配置方式，我在另一篇中有讲解，其静态 IP 的配置如下1234567891011121314#本段程序适用于 Ubuntu 18.04$ cd /etc/netplan$ vi 50-cloud-init.yaml对文件进行如下修改network: version: 2 ethernets: eth0: dhcp4: no addresses: [192.168.0.3/24] # 更换为你的 ip 地址 gateway4: 192.168.0.1 # 更换为你的网关地址 nameservers: addresses: [114.114.114.114] optional: true 安装完成 server 系统并配置好网络之后，就没再去过机房里了，以下操作都是在工位的电脑上用 ssh 连上去进行的操作。 安装 kvm 和 docker 环境这个部分的目标有如下几个 配置 Ubuntu centos win7 docker 四种环境的虚拟机模板 配置外部网络对于 kvm 虚拟机的直接访问 配置外部网络对于 docker 容器的访问 解释一下，这里说的 docker 环境有两种，一种是直接搭建在宿主机上的，另一种是搭建在 kvm 虚拟机中的，前者我用来配置了 nextcloud 网盘服务，后者作为实验环境 这个部分算是相对来说有些难度的一块了，倒不是因为说安装 kvm 和 docker 这两个环境困难，而是因为在安装完这两个环境之后需要进行的远程连接配置相对比较麻烦 安装过程kvm 安装docker 安装 网络配置过程这里分为两个部分，一个是保证工位机器能够直接 ssh 连上 kvm 虚拟机，二是将 docker 的端口映射到虚拟机上，先说后面的需求，这个相对简单 docker 端口访问配置由于 docker 上面难免会配置一些诸如网络应用的服务，因此我们将需要外部访问的内容映射到虚拟机的端口上即可，如需进一步映射到宿主机的某个端口上，可以参见 kvm 虚拟机端口映射部分来实现1docker run -p 8080:80 //这样就把容器的 80 端口映射到虚拟机的 8080 端口 kvm 端口访问配置kvm 虚拟机的端口映射到宿主机的端口需要用到端口转发，而 NAT 模式默认每次虚拟机重启之后分配的 IP 地址是随机的，因此，需要在 kvm 虚拟机中设置 IP 为静态 IP，方式如下12345678910#本段程序适用于 Ubuntu 16.04$ cd /etc/network/$ vim interfaces在该文件下加上如下内容auto eth0iface eth0 inet static address 192.168.0.3 netmask 255.255.255.0 gateway 192.168.0.1 dns-nameserver 114.114.114.114 由于 Ubuntu 18 已经使用了新的网络管理方式 netplan，因此在 Ubuntu 18 上我们使用 netplan 进行修改1234567891011121314#本段程序适用于 Ubuntu 18.04$ cd /etc/netplan$ vi 50-cloud-init.yaml对文件进行如下修改network: version: 2 ethernets: eth0: dhcp4: no addresses: [192.168.0.3/24] gateway4: 192.168.0.1 nameservers: addresses: [114.114.114.114] optional: true 实现了静态 IP 的修改之后，再进行端口转发的工作就相对比较便捷，直接修改 iptables 的规则进行转发操作123456789# 修改 iptables 规则# 修改 INPUT 链规则，开放 10000 端口iptalbes -A INPUT -p tcp --dport 10000 -j ACCEPT# 修改 nat 表 PREROUTING 链规则，将 1000 端口转发至内网 IP 192.168.0.3 的 22 端口iptables -A PREROUTING -d 10.10.20.46/32 -p tcp --dport 10000 -j DNAT --to 192.168.0.3:22# 修改 FORWARD 链规则，用来允许目的地址为 10.10.20.0/24 的连接iptables -A FORWARD -d 10.10.20.0/24 -o virbr0 -m state --state NEW,RELATED,ESTABLISHED -j ACCEPT# 修改 FORWARD 链规则，用来允许源地址为 10.10.20.0/24 的连接iptables -A FORWARD -s 10.10.20.0/24 -i virbr0 -j ACCEPT 这些内容都配置完成之后，服务器上的环境实际上已经相对很齐全了，下面是对于 git 服务器和网盘的配置 gogs 服务器 + nextcloud 网盘 gogs 安装，这个我是二进制安装的 nextcloud 安装，这个我是 docker 安装的 这里我就不详细叙述了，两者官网上面都有很详细的教程]]></content>
+      <categories>
+        <category>网络配置</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>docker</tag>
+        <tag>server</tag>
+        <tag>kvm</tag>
+        <tag>iptables</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Ubuntu 18.04 netplan 网络配置]]></title>
+    <url>%2F2019%2F08%2F16%2FLinux%20%E7%BD%91%E7%BB%9C%E9%85%8D%E7%BD%AE%E6%96%B9%E5%BC%8F%E5%8F%98%E6%9B%B4%2F</url>
+    <content type="text"><![CDATA[一句话概括主要讲解 Ubuntu 18.04 中 netplan 的网络配置具体方式，主要分为如下的几个方面 静态 IP 的配置 动态 IP 的配置 动态 IP 的配置Ubuntu 18.04 Server 安装好后，Netplan 的默认描述文件是：/etc/netplan/50-cloud-init.yaml123456789101112$ sudo vim /etc/netplan/50-cloud-init.yamlnetwork: version: 2 renderer: networkd ethernets: # 对于以太网的配置 enp0s5: # 这里是待配置网卡的名称 dhcp4: yes dhcp6: yes$ sudo netplan apply# 使配置生效 静态 IP 的配置12345678910111213141516$ sudo vim /etc/netplan/50-cloud-init.yamlnetwork: renderer: networkd ethernets: enp0s5: addresses: - 192.168.100.211/23 gateway4: 192.168.100.1 nameservers: addresses: [8.8.8.8, 8.8.4.4] search: [] optional: true version: 2$ sudo netplan apply 参考链接https://www.hi-linux.com/posts/49513.html]]></content>
+      <categories>
+        <category>网络配置</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>netplan</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[C语言输入及传参之谜 —— 数组篇]]></title>
+    <url>%2F2019%2F07%2F31%2Fc%E8%AF%AD%E8%A8%80%E8%BE%93%E5%85%A5%2F</url>
+    <content type="text"><![CDATA[前言最近有点忙碌，毕设和找工作同步进行，需要进行一些算法的训练，leetcode 上面风格是只用写函数体的内容，基本不用考虑输入时什么样的，但是基本上公司都是用牛客网作为笔试和面试的平台，牛客上的程序是完整的。。。从头到尾要全部写出来，这个时候，就会发现各种读取输入并存储的问题，然后是各种传参的问题（毕竟 leetcode 上都已经把这些参数接口啥的形式都给出来了，我们直接用就行），这是第二个大坑，代码逻辑都写完了，然后发现输入的数组啥的并没有传入子函数，抓狂！所以用一篇博文记录一下最近遇到的各种自己之前不熟悉的输入和传参问题 输入相关由于一般的笔试题都有多行的输入，所以需要进行循环输入，并且有时候还没有初始条件来判断总共的行数，下面用一些典型的例子来说明 字符串数组的输入记录这里分两种情况 前面已经定义好了数组的大小 这种情况比较简单，直接一个 for 循环就可以完美地将所有的内容输入 123456char* str; //注意这里如果是定义的字符指针，//那么 scanf 里面的引用是不用加 &amp; 符号的，因为这时 str 已经是一个地址？for(int i=0;i&lt;counter;i++)&#123; scanf("%s",str);&#125; 前面未定义数组大小 这种情况需要用 while 循环来进行输入，但是输入结束的判断条件是什么？我实际上没有解决这个问题推荐的读入方式如下 12345678910111213int count=0;char* recieve[nums];//这里一定要注意的问题就是一定要记得给这个指针数组分配空间for(int i=0;i&lt;nums;i++)&#123; recieve[i] = (char*)malloc(100*sizeof(char));&#125;//当输入是文件的时候这种方案才有效，否则如果是在终端进行键入//会出现一种按 enter 键无效的尴尬境地，因为在 %s 输入的时候//包括空格和 enter 键都不认为是输入的结束标志，那什么是字符//串输入的==结束标志呢？==while(scanf("%s",str) != EOF)&#123; recieve[count++] = str;&#125; 二维数组的输入记录这里同样分两种情况 前面已经定义好了数组的大小这种情况比较简单，不再赘述 前面没有定义数组的大小这种情况同样需要 while 循环来进行输入，但是结束的标志为？ 传参形式自己写完整的程序不仅仅在输入的部分比较麻烦，而且还有一点就是在传参的时候也相对情况比较多一点，这里要注意的事情就是根据原始定义方式的不同，最后传入参数的值也相应地不同 字符串数组传参字符数组一般是用指针的形式进行定义，因此，在作为参数传递的时候需要如下形式 1234//定义char* arrays[];//传参引用，这里一定是 char**，因为什么？void a(char** arrays)&#123;&#125; 二维数组传参二维数组定义形式较多，对于各种不同的定义形式，最后传参的方式也不同 int a[m][n] 形式定义这种定义形式，需要的传参方式为 1void a(int m,int n,int a[m][n]) int (a)[n] 形式定义这种定义形式，一定要注意 a 的括号！因为 [] 运算符的优先级高于 *，所以这里表示的含义是 有 n 个指针的数组，然后指针又指向一个数组的首地址，这种定义形式，需要传参方式为 1void a(int n,int (*a)[n]) 注意：这里两种形式的传参中都预先申明了 m 和 n 的值，只有这样，这个数组才能够在栈上进行初始化的操作 参考链接C语言：定义指向二维数组的指针变量https://blog.csdn.net/linwh8/article/details/50346749C语言字符串和字符串数组的输入赋值https://blog.csdn.net/hl156/article/details/82856139]]></content>
+      <categories>
+        <category>算法学习</category>
+      </categories>
+      <tags>
+        <tag>blog</tag>
+        <tag>leetcode</tag>
+        <tag>c 语言</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[PCTF 的一道简单 docker 题小记]]></title>
+    <url>%2F2019%2F04%2F13%2FPCTF-docker%2F</url>
+    <content type="text"><![CDATA[一句话概括老规矩，这篇文章的主要是通过一道简单的 CTF 题分析如何通过 docker image 得到 dockerfile 比赛题目说来是一道比较简单的赛题了，但是因为是鼎鼎大名的 plainCTF，所以没有小视，题目如下：1docker pull whowouldeverguessthis/public 做题思路拉取 image，在 dockerhub 上查看 image 信息拉取命令是同上的，然后是查看 image 是否有相应的 dockerfile，发现 dockerhub 上并没有任何有效的信息 把 image run 起来1docker run -dit whowouldeverguessthis/public 查看 container 内的内容12345docker exec -it cotainerID /bin/bash$: ls... flag ...$: cat flagI'm sorry, but your princess is in another castle 到这里思路突然就卡住了，然后就进行了一些尝试 尝试 查看 container 中运行的进程利用 ps, lsof, netstat 等等查看，发现并没有多余的进程信息，这样也就排除了它包含有 web server 等内容的可能性 注意，这里列出的指令容器里本身都是没有的，需要自己安装，但是刚刚脑抽忘了在 container 里做源更新，所以啥都没装上，于是只能在 proc 文件夹底下看进程的具体信息，发现进程也就只有序号为 1 的初始进程以及做 ssh 的进程，因此断定这种考虑是一个跑偏的思路 查看 image 的信息，试图找出来 image 构建的过程首先用的是 docker inspect 命令看镜像具体的内容，没有实质性的发现；然后想起来现在仍然没有看到构建镜像的 dockerfile，因此考虑如何能够通过镜像看到其构建的过程，Google 一下，发现真的有这种操作，docker 提供一个 docker history 的命令，运行尝试一下123456$: docker history howouldeverguessthis/publicIMAGE CREATED CREATED BY SIZE COMMENT969996089570 20 hours ago /bin/sh -c echo "I'm sorry, but your princes… 50B &lt;missing&gt; 20 hours ago /bin/sh -c echo "PCTF&#123;well_it_isnt_many_poin… 51B &lt;missing&gt; 2 months ago /bin/sh -c #(nop) CMD ["bash"] 0B &lt;missing&gt; 2 months ago /bin/sh -c #(nop) ADD file:34b9952e66cb98287… 68.9MB WOW!!! 发现了有没有！但是。。。它被压缩显示了，如何把这个展开？问一下大佬师弟有没有相关经验，果然师弟聪慧过人，在 docker history 后面加上了 help 就发现了秘密12345$: docker history --no-trunc howouldeverguessthis/public|awk '&#123;print $8&#125;'"I'm"PCTF&#123;well_it_isnt_many_points_what_did_you_expect&#125;"CMDADD GET! 总结虽然是一道很简单的签到题，但是给我最大的启示就是对于出题意图的思考和逐步排除的做法，其实这道题的本质是逆向，通过 docker image 逆向出构建的方式]]></content>
+      <categories>
+        <category>docker</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>docker</tag>
+        <tag>docker image</tag>
+        <tag>dockerfile</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[es数据库聚合操作——sql的group by]]></title>
+    <url>%2F2019%2F03%2F22%2Fes%E6%95%B0%E6%8D%AE%E5%BA%93%E7%94%A8%E6%B3%95%2F</url>
+    <content type="text"><![CDATA[晚上有一个紧急任务，需要在es数据库上做一些数据统计的工作，之前搭建这个 es(Elastic Search，数据库) 的时候因为是直接集成进去的，没有弄明白 DSL 语法，这次借着这个机会，先对这个现在常用的数据库有一个大致的了解。 本文会涉及 es 数据库中的 bucket聚合-桶聚合操作，主要是aggs，顺带介绍一些 DSL 的一些基本概念，时间有限，难免有些差池，大佬轻喷。 es 中的基本概念这里我会讲到一些 es 数据库中的一些基本概念，包括 index，type，aggs，query等等，因为单纯地讲概念不是很好理解，因此，我结合具体的例子来进行相关的说明。 具体的一条 json 数据例子如下123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657&#123; "_index": "logstash-2019.03.21", "_type": "Cowrie", "_id": "AWmf-pxufLcCNFbYf3vg", "_version": 1, "_score": null, "_source": &#123; "eventid": "cowrie.login.failed", "t-pot_hostname": "structuralwallet", "geoip": &#123; "timezone": "Asia/Singapore", "ip": "180.255.15.211", "latitude": 1.2854999999999999, "continent_code": "AS", "as_org": "SINGTEL MOBILE INTERNET SERVICE PROVIDER Singapore", "city_name": "Singapore", "country_name": "Singapore", "country_code2": "SG", "country_code3": "SG", "region_name": "Central Singapore Community Development Council", "location": &#123; "lon": 103.8565, "lat": 1.2854999999999999 &#125;, "asn": 45143, "region_code": "01", "longitude": 103.8565 &#125;, "session": "224ecd858279", "t-pot_ip_int": "172.24.106.97", "message": "login attempt [root/88888888] failed", "type": "Cowrie", "src_ip": "180.255.15.211", "t-pot_ip_ext": "39.104.64.89", "path": "/data/cowrie/log/cowrie.json", "password": "88888888", "system": "CowrieTelnetTransport,1830,180.255.15.211", "isError": 0, "@timestamp": "2019-03-21T11:19:55.102Z", "@version": "1", "host": "8929fa3b68bd", "sensor": "33618e9c9386", "username": "root", "timestamp": "2019-03-21T11:19:55.102483Z" &#125;, "fields": &#123; "@timestamp": [ 1553167195102 ], "timestamp": [ 1553167195102 ] &#125;, "sort": [ 1553167195102 ]&#125; emmmmmm，懂的童鞋大概知道这个数据是什么生成的，我这里就不详细说了。我们可以看到，上面的 具体聚合代码下面具体讲一讲具体的需求和实现方式 任务需求聚合操作的代码123456789101112131415161718192021222324GET _all/Cowrie/_search&#123; "aggs": &#123; "IP": &#123; "terms": &#123; "field": "geoip.ip", "size": 100000, "min_doc_count": 0 &#125;, "aggs": &#123; "distinct_IP": &#123; "cardinality": &#123; "field": "geoip.ip" &#125; &#125; &#125; &#125;, "sum_of_rul": &#123; "sum_bucket": &#123; "buckets_path": "IP&gt;distinct_IP.value" &#125; &#125; &#125;&#125; 聚合操作的结果1234567891011121314151617181920212223242526272829303132333435363738394041424344454647&#123; "took": 2805, "timed_out": false, "_shards": &#123; "total": 93, "successful": 93, "skipped": 0, "failed": 0 &#125;, "hits": &#123; "total": 1158960, "max_score": 1, "hits": [ &#123; "_index": "logstash-2018.12.21", "_type": "Cowrie", "_id": "AWfOtwlqs4bscJpC8YlL", "_score": 1 &#125; ] &#125;, "aggregations": &#123; "IP": &#123; "doc_count_error_upper_bound": 0, "sum_other_doc_count": 0, "buckets": [ &#123; "key": "193.112.88.114", "doc_count": 82161, "distinct_IP": &#123; "value": 1 &#125; &#125;, &#123; "key": "124.23.134.142", "doc_count": 29807, "distinct_IP": &#123; "value": 1 &#125; &#125; ] &#125;, "sum_of_rul": &#123; "value": 8036 &#125; &#125;&#125; 这里我把结果中的很多重复性的内容都省略掉了，比如 hits 下面列出了很多条示例的 json 数据， aggregation 中也列出了很多统计的数据。这里解释一下结果中一些字段的含义： took, time_out hits doc_count_error_upper_bound sum_other_doc_count buckets 参考链接Elasticsearch权威指南（中文版）https://es.xiaoleilu.com/Elasticsearch Aggregations 统计buckets中key的个数https://blog.csdn.net/greenappple/article/details/79728395Elasticsearch：权威指南https://www.elastic.co/guide/cn/elasticsearch/guide/current/index.htmlelasticsearch——部分聚合结果不准确https://www.jianshu.com/p/f650f76f21e2]]></content>
+      <categories>
+        <category>现学小技能</category>
+      </categories>
+      <tags>
+        <tag>elasticsearch</tag>
+        <tag>database</tag>
+        <tag>DSL语句</tag>
+        <tag>聚合操作</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[回车和换行-win&linux&mac——\r与\n的不同之处]]></title>
+    <url>%2F2019%2F03%2F21%2F%E5%9B%9E%E8%BD%A6%E5%92%8C%E6%8D%A2%E8%A1%8C-win%26linux%26mac%2F</url>
+    <content type="text"><![CDATA[计算机的键盘设计是参考之前的英文打字机，英文打字机换行的时候分为两个动作——回车+换行。回车(carrige return,CR)：将打字机的小车重新推到行首换行(line feed,LF)：将打字机的小车调至下一行的位置在计算机中，回车用 ASCII 的 13 表示，换行用 ASCII 的 10 表示；]]></content>
+      <categories>
+        <category>计算机知识</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>\r\n</tag>
+        <tag>windows</tag>
+        <tag>mac</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Docker学习资源汇总]]></title>
+    <url>%2F2019%2F03%2F19%2Fdocker%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%BA%90%2F</url>
+    <content type="text"><![CDATA[docker 作为现在一种应用十分广泛的虚拟化技术，受到了众多云厂商的一致青睐，这里就 docker 的学习从浅至深给出一些比较经典的网站资料等，分享给大家，争取共同进步！ 基础篇由于大部分人对于 docker 只有简单的应用需求，并没有]]></content>
+      <categories>
+        <category>docker 学习</category>
+      </categories>
+      <tags>
+        <tag>docker</tag>
+        <tag>image</tag>
+        <tag>container</tag>
+        <tag>源码</tag>
+        <tag>学习资源</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[c语言指针赋值]]></title>
+    <url>%2F2019%2F03%2F18%2Fc%E8%AF%AD%E8%A8%80%E6%8C%87%E9%92%88%E8%B5%8B%E5%80%BC%E7%9B%B8%E5%85%B3%2F</url>
+    <content type="text"><![CDATA[最近焦虑着找工作的事情，所以也来刷一刷 leetcode 上面的题目，想了想还是用比较基础的C语言，先做简单的题，不做不知道，一做就发现了一些C语言知识上的盲点，指针这里是让所有C语言学习者又爱又恨的地方了。 题目非常简单，就是用指针定义一个数组，然后给数组进行加一的操作，最后返回加一之后的数组即可，由于长时间也没有使用C编程，所以开始跑的时候就出了一些问题，leetcode 的在线编译器又无法调试，因此就在自己的本地跑，新的问题就出现了，那就是需要写 main 函数，当然这个就是引发问题的地方，因为最后子函数都在 leetcode 上运行成功了，但是在本地跑的时候还是结果不对，这里就给刚才遇到的坑一个总结。 Part 1 指针，局部变量和全局变量这是刷 leetcode 就开始遇到的疑惑，题目中往往给出如下的一段程序12345/** * Return an array of size *returnSize. * Note: The returned array must be malloced, assume caller calls free(). */int* plusOne(int* digits, int digitsSize, int* returnSize) 我在开始刷的时候很长一段时间都以为 return 的内容应该是 *returnSize ，按变量名的意思也就是最后数组的长度。。。所以怎么写程序就怎么觉得不对劲。于是我放弃了在线编译，转而在自己的电脑上写一个完整的程序。抱着这样的想法，我开始写 main 函数，但是写着写着就发现不对，因为如果这个子函数最后的返回值是数组的长度，那么我们是无法直接获取输出的，然而它题目的示例是这样的123输入: [1,2,3]输出: [1,2,4]解释: 输入数组表示数字 123。 想法一所以我否定了最初的想法，转而去想是否返回值为 *returnSize，但是修改的是已经定义好的那个 digits 数组呢？我用这个思路也写了一下，发现 leetcode 上依然没有通过，orz。。。 这种想法基本是可以否定的，因为这个数组的大小是有可能变化的，如果变化的话，需要重新给 digits 这个数组 malloc 空间，但是这个数组很明显是在 main 函数中就已经 malloc 好了空间的，在子函数里面再重新分配一次必然会有冲突。 想法二由于之前也稍微见过这种要求返回数组的题目，想了一想，记得最后在子函数里返回的是指向数组的一个指针，并非什么数组的大小，但是转念一想？这个 *returnSize 要怎么返回呢？这样一个数组，一个大小，这俩值总不能做个数组一起返回吧，233333 至此就要提出这个题给我补上的第一个知识点了 指针的“全局性”这样说当然是不妥当的，所以我在“全局性”这三个字上加了引号，为了解释清楚我做了一个小实验1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253源码#include &lt;stdio.h&gt;#include &lt;stdlib.h&gt;int c = 1;void af(int i)&#123; i = i + 1;&#125;void bf1(int* i)&#123; *i = *i - 1;&#125;void bf2(int* i)&#123; int j = 2; i = &amp;j;&#125;void cf1()&#123; c = c + 1;&#125;void cf2()&#123; c = c - 1;&#125;int main()&#123; int a = 1; int* b; b = &amp;a; printf("origin a value: %d\n",a); af(a); printf("current a value: %d\n",a); printf("**********************************\n"); printf("origin b value: %d\n",*b); printf("origin b address: %d\n",b); bf1(b); printf("current b1 value: %d\n",*b); printf("current b1 address: %d\n",b); bf2(b); printf("current b2 value: %d\n",*b); printf("current b2 address: %d\n",b); printf("***********************************\n"); printf("origin c value: %d\n",c); printf("origin c address: %d\n",&amp;c); cf1(); printf("current c1 value: %d\n",c); printf("origin c1 address: %d\n",&amp;c); cf2(); printf("current c2 value: %d\n",c); printf("origin c2 address: %d\n",&amp;c); return 0;&#125; 上面的程序非常的简单，大家应该不需要解释都能看懂，结果如下 对程序运行分析可以得出：指针并非全局变量，只是作为参数传递时，修改的是其指向的内容，因此，表现出来伪“全局性” Part 2 C语言指针赋值了解上面的问题之后，我快速地在 leetcode 上完成了代码的书写并测试通过，本身题目逻辑很简单，但是在本地测试竟然还是有问题？我非常地不服下面为 main 函数的内容12345678910111213141516171819202122int main()&#123; int size; printf("please put in the array size:"); scanf("%d",&amp;size); int* digits = (int*)malloc(size*sizeof(int)); for(int i=0;i&lt;size;i++)&#123; scanf("%d",&amp;digits[i]); &#125; int* returnSize; returnSize = &amp;size; //int* digit2 = (int *)malloc((size+1)*sizeof(int)); //int* digit2； // = (int *)malloc((size+1)*sizeof(int)); //printf("%d",(int *)plusOne(digits,size,returnSize)[0]); int * digit2 = (int *)plusOne(digits,size,returnSize); printf("%d result:\n",(* returnSize)); for(int j=0;j&lt;size;j++)&#123; printf("%d",digit2[j]); &#125; return 0;&#125; 由于一直出不来结果，只能到处加输出找错误的位置，最后发现1int *returnSize = size; 这样一句话出了问题，那么问题在哪儿呢？就在这个赋值例子如下12int *p;*p = 7; 则编译器（vs2008）会提示The variable ‘p’ is being used without being initialized.即使用了未初始化的变量p。因为p是指向7所在的地址，*p = 7给p所指向的内存赋值，p没有赋值，所以p所指向的内存位置是随机的，没有初始化的。即returnSize初始化出了问题导致出错。 参考链接https://blog.csdn.net/mhjcumt/article/details/7351032]]></content>
+      <categories>
+        <category>leetcode</category>
+      </categories>
+      <tags>
+        <tag>leetcode</tag>
+        <tag>c语言</tag>
+        <tag>指针</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[postfix 设置（1）—— relay 设置]]></title>
+    <url>%2F2019%2F03%2F18%2Fpostfix%E8%AE%BE%E7%BD%AE%E2%80%94%E2%80%94%E4%B8%AD%E7%BB%A7%E8%AE%BE%E7%BD%AE%2F</url>
+    <content type="text"><![CDATA[由于最近有项目需求，需要自己搭建邮箱服务器，现在比较常用的框架就是 postfix ，但是有关 postfix 的设置网上的中文资料又比较少，只能自己开始着手做这个事情了，有说明不清楚或者不得当的地方希望各位大佬及时指正。 环境说明 postfix 源码安装包，版本 Postfix 3.4 Part1 中继设置项目中有一部分需求的实现需要进行中继方式的修改，具体是将 postfix 的中继方式修改为开放中继 中继基础知识抱着做什么学什么的态度，我对中继这个概念先有一个比较初步的定义。 参考资料postfix 官网有关中继和访问控制说明：http://www.postfix.org/SMTPD_ACCESS_README.html]]></content>
+      <categories>
+        <category>postfix 学习</category>
+      </categories>
+      <tags>
+        <tag>postfix</tag>
+        <tag>relay</tag>
+        <tag>mail</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[最完美的Hexo多电脑同步方法(转)]]></title>
+    <url>%2F2019%2F03%2F16%2F%E6%9C%80%E5%AE%8C%E7%BE%8E%E7%9A%84Hexo%E5%A4%9A%E7%94%B5%E8%84%91%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95(%E8%BD%AC)%2F</url>
+    <content type="text"><![CDATA[经常我们有一个场景：需要在公司或者家庭多个电脑完成Hexo的博客撰写和发布工作。这就涉及到Hexo多电脑的同步问题。 网上的方案基本上都是多分支方案。也即，在同一个仓库创建两个分支： Hexo分支 – 用来保存所有Hexo的源文件 master分支 – 用来保存Hexo生成的博客文件在创建GitHub Pages或者Coding Pages时，以master分支为pages分支。Hexo的deploy指向master分支部署pages，git的管理指向Hexo分支。 但是这里有一个巨大的问题，就是多分支的方案一定是让完整的Hexo源文件暴露在公开的仓库了。这对一些Hexo博客采用的leancloud阅读次数管理、多说评论等服务的私有secret key也暴露在公开仓库分支了。如果对这些配置的_config.yml进行单独管理的话，又不能在另一台电脑直接git pull同步，非常的麻烦。 所以Hexo最完美的多电脑同步方法是，创建两个仓库： Hexo私有仓库 – 用来保存所有Hexo的源文件 master公开仓库 – 用来保存Hexo生成的博客文件下面来具体讲讲实现方法。 基础假设这里假设读者已经建立起了Hexo的博客系统了，实现了比方说： 利用hexo d 直接deploy Hexo博客 实现了Hexo的GitHub和Coding国外和国内的同时发布 自行定义了例如next的第三方主题 Let’go!创建私有仓库注册一个Coding账号，然后创建一个私有项目，名称为Hexo-my 这里与原文有一些不同，原文书写时，coding还是独立的公司，现在已经被腾讯云合并了，注册的过程需要一些验证操作，并且很重要的一点是，尽量在注册以及用户名密码以及邮箱修改完成后再进行私有项目的建立，邮箱为自己的邮箱，密码为刚设置的密码，邮箱设置之后才可进行ssh公钥的设置 建立本地git仓库进入你现有的Hexo文件夹，删除第三方主题的git配置，如对next主题 1rm -fr ./themes/next/.git/ 然后建立本地的git仓库 1git init 创建一个.gitignore文件，并放在Hexo的根目录，内容为： 1234567.DS_StoreThumbs.dbdb.json*.lognode_modules/public/.deploy*/ push到私有仓库1234git remote add origin https://git.coding.net/&lt;yourname&gt;/Hexo-my.gitgit add .git commit -m "my first private hexo"git push -u origin master 至此，就完成了本地Hexo源码的全备份 在另一台电脑进行Hexo写作上面已经完成了Hexo的全备份，那么如果在另一台电脑进行Hexo编辑呢。当然首先你也要完成node/npm/hexo/git等环境的搭建和配置。 Hexo拉取1git clone https://git.coding.net/&lt;yourname&gt;/Hexo-my.git 这样你就拥有了你的所有Hexo源文件 Hexo编写和发布尽管拉取下来了，还需要建立一下Hexo的环境，这里需要格外注意的一点是：千万不要用hexo init命令。原因是当前目录已经建立了git仓库环境, hexo init会覆盖到当前的git环境，重建一个新的，这样和我们的私有Hexo源码仓库脱离了联系。 正确的做法是：1npm install 因为package.json里面已经保存了hexo的必备资源包信息，npm install后Hexo环境就建立起来了。 接下来就进行正常的编写和发布就好。本地预览的命令还是： 12hexo ghexo s Hexo的发布命令是hexo d。 最后执行git status把更改的新文件git add和git commit，最后git push到私有仓库，又会完成Hexo源码仓库的同步。 Hexo仓库更新下次进行Hexo仓库拉取时执行： 12git fetch --all #将git上所有文件拉取到本地git reset --hard origin/master #强制将本地内容指向刚刚同步git云端内容 reset 对所拉取的文件不做任何处理，此处不用 pull 是因为本地尚有许多文件，使用 pull 会有一些版本冲突，解决起来也麻烦，而本地的文件都是初始化生成的文件，较拉取的库里面的文件而言基本无用，所以直接丢弃。 END从此，世界是如此的美好。 参考链接https://ricky.moe/2017/01/13/hexo-perfect-synchronize/#comments]]></content>
+      <categories>
+        <category>博客搭建</category>
+      </categories>
+      <tags>
+        <tag>blog - hexo - coding云</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[docker命令学习记录]]></title>
+    <url>%2F2019%2F03%2F13%2Fdocker%E5%91%BD%E4%BB%A4%E5%AD%A6%E4%B9%A0%E8%AE%B0%E5%BD%95%2F</url>
+    <content type="text"><![CDATA[本文主要记录自己在学习使用docker过程中的一些指令操作，大多是解决某些比较常见的问题，但是又一时无法联想起来的命令操作。 问题及解决方式记录20190313-无网络或特殊情形下的docker镜像打包存储 解决方式一：利用commit和save指令将镜像达成tar包，然后利用load指令进行加载，具体命令如下： 列出机器上所有容器（这里就包括正在运行和已经停止两种类型） $:docker ps -a 将==选定的容器==打包成镜像 $:docker commit xxxxx(需要打包成镜像的container ID) xxx(新打包镜像的名称) 将镜像存储到特定的位置 $:docker save xxx(新打包镜像名) &gt; /path/to/save/image/xxx.tar 将文件导入镜像库中 $:docker load &lt; /path/to/save/image/xxx.tar 至此即可在无网状态进行容器迁移操作 CHEN之提醒：container和image是dockers中比较容易混淆的两个概念，image运行起来之后才是container，具体的区别参见：docker原理学习记录-image vs container 解决方式二：利用docker私有仓库的方式进行打包上传和下载操作，该方式较方式一要复杂一些，但是这种方式是更加规范和官方的镜像管理方式，能够实现集中化的镜像管理，具体搭建方式如下： 问题反思 Question1：这里有一个很严重的问题，进行容器打包操作的时候，容器的状态有无规定？是否需要容器已经是exited状态？Answer：之所以想到这个问题是因为如果容器运行时，会生成一个container层，用户在容器中进行的所有操作都记录在容器层中，且基础镜像不会因为各个容器改变，因此，如果需要对更改后的容器进行打包操作，一般情况是需要在exited状态进行打包操作的。 Question2： 参考链接打包镜像并使用文件导入https://wiselyman.iteye.com/blog/2153202建立docker私有库(docker registry)https://wiselyman.iteye.com/blog/2153083]]></content>
+      <categories>
+        <category>docker</category>
+      </categories>
+      <tags>
+        <tag>docker</tag>
+        <tag>learning</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[流量分析学习]]></title>
+    <url>%2F2019%2F03%2F11%2F%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90%E5%AD%A6%E4%B9%A0%2F</url>
+    <content type="text"><![CDATA[本记录旨在记录自己入门流量分析的整个过程，从抓包开始，主要的工作环境为Linux，偶尔会用到Windows上的wireshark进行流量包的查看（不用Linux查看pcap包的原因——大多使用的是无界面的server版Linux），因此抓包的工具为tcpdump，暂用python进行流量内容的解析。 tcpdump使用基础 tcpdump是一个通用的命令行包分析工具，它能够实现将计算机的网络包显示出来。 tcpdump的具体用法如下（主要是常用的参数）： 获取host主机portnum端口eth0网卡的tcp协议数据包，并保存为store.pcaptcpdump tcp -i eth0 src host hostname and port portnum -w store.pcap tcpdump的分段保存机制 tcpdump -C 1 -w size.pcap //将流量保存为1MB大小的数据包，数据包会依次保存为：size.pcap size.pcap1 size.pcap2 …… tcpdump -G 1 -w %Y%m%d%H%M%S.pcap //将抓取的流量按时间保存，每秒保存一次，数据包依次会保存为：20190311130701.pcap 20190311130702.pcap 20190311130703.pcap ……]]></content>
+      <categories>
+        <category>流量分析</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>流量</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[mailoney源码分析]]></title>
+    <url>%2F2019%2F03%2F06%2F%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%2F</url>
+    <content type="text"><![CDATA[本文旨在分析mailoney如何实现对于邮件系统的模拟，以及对于邮件和邮箱系统交互命令的记录；mailoney开源项目中，一共有三种不同的工作模式，分别为：1 作为开放中继；2 只记录认证信息；3 记录所有的内容（包括认证信息和邮件内容）； 由于第三个模式对前两种有包含的关系，并且现在该项目主要维护的也是第三种模式，因此，本文只针对modules中的schizo_open_relay.py进行分析； 项目结构此开源项目实现的是一个模拟邮件系统的开源邮箱蜜罐，代码分为mailoney.py以及支持的三个module，即mailoney为主程序，modules中为mailoney中选定的具体运行类型； 邮件系统模拟项目代码阅读如下：mailoney.py主要功能： 定义命令参数的形式及功能（IP，端口，模块，域名等等信息） 使用库argparse进行参数的划分 定义日志存放位置，建立socket连接 定义hpfeeds服务器用来进行捕获信息的传输 main函数中进行运行模块的选择 下面主要讲述schizo_open_relay.py，这个程序实现了邮箱模拟以及数据记录的功能：程序开始部分：自定义函数 log_to_file()功能：将日志存储到文件，存储的信息有IP，port和data三个部分，这个函数的功能即为所有记录功能的实现； log_to_hpfeeds()功能：将日志通过hpfeed服务发送出去 process_packet_for_shellcode()功能：使用python的libemu对shellcode进行检测，然后进行shellcode的记录 自定义类 class SMTPChannel(asynchat.async_chat)此类为实现邮箱的主要类，包括了对于邮箱模拟的各种操作，其中有一些具体的函数内容 push()：重载基础类 collect_incoming_data()：按1MB的大小切分流量数据进行保存 found_terminator()：分析流量数据进行切分保存 __getaddr()：拿到发送者IP及端口信息 以下的函数为smtp邮箱服务器支持的命令类型，全部使用自己的函数进行相关的模拟 smtp_HELO()：模拟helo后台，输出服务器信息 smtp_EHLO()：模拟helo后台，输出服务器信息 smtp_QUIT()：模拟quit后台，退出socket连接 smtp_AUTH()：模拟auth后台，实现账户登录操作 smtp_MAIL()：模拟mail后台，实现发送邮件开始指令 smtp_RCPT()：模拟rcpt后台，实现邮件接收地址的传入 smtp_DATA()：模拟data后台，实现邮件内容的传入 class SMTPServer(asyncore.dispatcher)此类为实现邮箱服务的类，主要功能为与连接者建立socket连接，其中有一些具体的函数 handle_accept()：建立socket连接 handle_close()：关闭socket连接 process_message()：该部分内容作者未完善 module函数 class SchizoOpenRelay(SMTPServer)此类为该模块的类名 process_message()：实现命令记录以及邮件记录的操作 run()：实现最终的整体功能操作 阅读小结综合来看，mailoney是自己搭建了一个服务器用来进行与攻击者进行交互，其中用代码实现了大部分的smtp协议的操作，包括helo，ehlo，auth等等一些指令，具有一定的真实性，但是它存在一些很大的缺点。 对于收发地址没有做检查 不能真实地进行邮件收发操作]]></content>
+      <categories>
+        <category>蜜罐学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>蜜罐</tag>
+        <tag>honeypot</tag>
+        <tag>mailoney</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[shell编程学习-持续更新]]></title>
+    <url>%2F2019%2F03%2F06%2Fshell%E7%BC%96%E7%A8%8B%E5%AD%A6%E4%B9%A0-%E6%8C%81%E7%BB%AD%E6%9B%B4%E6%96%B0%2F</url>
+    <content type="text"><![CDATA[现在很多的项目源码中都含有shell脚本，但是我对于shell脚本的写法还不是很熟悉。这种脚本式的语言大多是用于==自动化处理==的目的，包括一些正则匹配规则等等，主要是进行一些安装处理以及配置操作。鉴于shell脚本的使用量很大，因此我在这篇文档里把一些我见到的常用的shell脚本中的写法做一个解析，便于以后见到类似的语句等不会无法理解。 命令 if命令shell脚本中的流程控制不可为空，即if else fi中，如果else中没有操作，那么这个else就不要写；if elif else fi: if condition1 then command elif condition2 then command else command fi Condition中会有这样一些参数值用作if条件判断的内容，具体如下：[ -a FILE ] 如果 FILE 存在则为真。[ -b FILE ] 如果 FILE 存在且是一个块特殊文件则为真。[ -c FILE ] 如果 FILE 存在且是一个字特殊文件则为真。[ -d FILE ] 如果 FILE 存在且是一个目录则为真。[ -e FILE ] 如果 FILE 存在则为真。[ -f FILE ] 如果 FILE 存在且是一个普通文件则为真。[ -g FILE ] 如果 FILE 存在且已经设置了SGID则为真。[ -h FILE ] 如果 FILE 存在且是一个符号连接则为真。[ -k FILE ] 如果 FILE 存在且已经设置了粘制位则为真。[ -p FILE ] 如果 FILE 存在且是一个名字管道(F如果O)则为真。[ -r FILE ] 如果 FILE 存在且是可读的则为真。[ -s FILE ] 如果 FILE 存在且大小不为0则为真。[ -t FD ] 如果文件描述符 FD 打开且指向一个终端则为真。[ -u FILE ] 如果 FILE 存在且设置了SUID (set user ID)则为真。[ -w FILE ] 如果 FILE 如果 FILE 存在且是可写的则为真。[ -x FILE ] 如果 FILE 存在且是可执行的则为真。[ -O FILE ] 如果 FILE 存在且属有效用户ID则为真。[ -G FILE ] 如果 FILE 存在且属有效用户组则为真。[ -L FILE ] 如果 FILE 存在且是一个符号连接则为真。[ -N FILE ] 如果 FILE 存在 and has been mod如果ied since it was last read则为真。[ -S FILE ] 如果 FILE 存在且是一个套接字则为真。[ FILE1 -nt FILE2 ] 如果 FILE1 has been changed more recently thanFILE2 , or 如果 FILE1 FILE2 does not则为真。exists and[ FILE1 -ot FILE2 ] 如果 FILE1 比 FILE2 要老, 或者 FILE2 存在且FILE1 不存在则为真。[ FILE1 -ef FILE2 ] 如果 FILE1 和 FILE2 指向相同的设备和节点号则为真。[ -o OPTIONNAME ] 如果 shell选项 “OPTIONNAME” 开启则为真。[ -z STRING ] “STRING” 的长度为零则为真。[ -n STRING ] or [ STRING ] “STRING” 的长度为非零 non-zero则为真。[ STRING1 == STRING2 ] 如果2个字符串相同。 “=” may be used instead of “==” for strict POSIX compliance则为真。[ STRING1 != STRING2 ] 如果字符串不相等则为真。[ STRING1 &lt; STRING2 ] 如果 “STRING1” sorts before “STRING2” lexicographically in the current locale则为真。[ STRING1 &gt; STRING2 ] 如果 “STRING1” sorts after “STRING2” lexicographically in the current locale则为真。[ ARG1 OP ARG2 ] “OP” is one of -eq , -ne , -lt , -le , -gt or -ge. These arithmetic binary operators return true if “ARG1” is equal to, not equal to, less than, less than or equal to, greater than, or greater than or equal to “ARG2”, respectively. “ARG1” and “ARG2” are integers. 组合表达式的含义[ ! EXPR ] 如果 EXPR 是false则为真。[ ( EXPR ) ] 返回 EXPR 的值。这 样可以用来忽略正常的操作符优先级。[ EXPR1 -a EXPR2 ] 如果 EXPR1 and EXPR2 全真则为真。[ EXPR1 -o EXPR2 ] 如果 EXPR1 或者 EXPR2 为真则为真。 set命令 stty命令 setenforce 参考链接bash shell if 命令参数说明：http://www.cnblogs.com/magicyang/archive/2011/08/26/2154551.html]]></content>
+      <categories>
+        <category>linux学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>debug</tag>
+        <tag>shell</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Linux的init系统]]></title>
+    <url>%2F2019%2F03%2F06%2FLinux%E7%9A%84init%E7%B3%BB%E7%BB%9F%2F</url>
+    <content type="text"><![CDATA[Linux作为一个开源使用广泛的操作系统，内部有极多的运行机制，这里介绍一下Linux刚启动时的init系统； sysvinitupstartsystemd这几个东西的区别：头两种使用service命令进行服务的启停操作；最后一种使用systemctl命令来进行服务的启停操作。]]></content>
+      <categories>
+        <category>linux</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>init 系统</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[word 日常小技巧]]></title>
+    <url>%2F2019%2F03%2F01%2Fword%E7%9B%B8%E5%85%B3%E5%86%85%E5%AE%B9%2F</url>
+    <content type="text"><![CDATA[本文旨在收集一些常用的word小技巧 带对勾方框的设置方法 删除空白页的方法]]></content>
+      <categories>
+        <category>office</category>
+      </categories>
+      <tags>
+        <tag>office</tag>
+        <tag>word</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Ubuntu常规错误Could not get lock /var/lib/dpkg/lock...]]></title>
+    <url>%2F2019%2F03%2F01%2FUbuntu%E5%87%BA%E7%8E%B0dpkg%E8%A2%AB%E5%8D%A0%E7%94%A8%2F</url>
+    <content type="text"><![CDATA[想必用Ubuntu的小伙伴都被一个错误折磨过，它总是来无影，但是一般就赖着不走了，真容如下： E: Could not get lock /var/lib/dpkg/lock - open (11: Resource temporarily unavailable) E: Unable to lock the administration directory (/var/lib/dpkg/), is another process using it? 记得刚接触Ubuntu的时候，对这个问题束手无策，每次碰到只能重启解决。。。还是当时太年轻。那么，这篇文章分两个部分给这个问题进行解决，一部分是这个问题的产生原因，第二部分是这个问题的解决方案。 问题产生原因出现这个问题的原因是apt还在运行，因此无法使用apt 解决方案对于这个问题，现在有两个比较可行的解决方案 方案一：找到并杀掉所有apt-get和apt进程首先利用ps命令找到所有含apt的进程列表 ps -A | grep apt 找出所有的apt以及apt-get进程，用kill命令彻底杀死 sudo kill -9 processnumber sudo kill -SIGKILL processnumber 方案二：删除锁定文件锁定文件会阻止Linux系统中某些文件或者数据的访问，这个概念也存在于Windows或者其他操作系统。在Ubuntu中，一旦运行了apt-get或者apt命令，锁定文件就会被创建 /var/lib/apt/lists/ /var/lib/dpkg/ /var/cache/apt/archivives/这样三个文件夹中会出现lock文件进行这种方案的原因是可能进程被杀掉了，但是lock文件并没有释放，所以导致该错误 sudo rm /var/lib/dpkg/lock 然后用下面一条命令重新配置软件包： sudo dpkg --configure -a 如果没有效果，那么就可以将/var/lib/apt/lists/以及缓存文件夹下的lock文件一并删除 sudo rm /var/lib/apt/lists/lock sudo rm /var/cache/apt/archives/lock 然后更新软件包源列表 sudo apt update 参考链接https://blog.csdn.net/u011596455/article/details/60322568https://www.cnblogs.com/bing-yu12/p/6367894.html]]></content>
+      <categories>
+        <category>linux</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>ubuntu</tag>
+        <tag>ubuntu bug</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Linux指令的标准输入，输出及错误——2>&1]]></title>
+    <url>%2F2019%2F02%2F28%2FLinux%E6%8C%87%E4%BB%A4%E6%A0%87%E5%87%86%E8%BE%93%E5%85%A5%E3%80%81%E8%BE%93%E5%87%BA%E5%8F%8A%E9%94%99%E8%AF%AF%2F</url>
+    <content type="text"><![CDATA[今天在看chroot的时候，发现一个2&gt;&amp;1的东西，觉得跟指令完全不相关，有点像是正则表达式的样子，之前也稍微听过别人说是跟标准输入输出有关系，但是没有搞清楚过具体的作用，这里就把这个相关的知识点写一写吧 一句话概括为了给赶时间的童鞋看，我就用一句话简要概括： 2&gt;&amp;1的作用是将程序运行时的标准错误信息添加到标准输出中 具体内容具体碰到的指令是这样的 nohup command&gt;/dev/null 2&gt;&amp;1 &amp; 先说几个基本的符号 /dev/null 表示空设备文件 0表示stdin标准输入 1表示stdout标准输出 2表示stderr标准错误 指令分析据此我们来对这条指令进行拆分，nohup是指当前用户和系统会话下的进程忽略响应HUP消息，&amp;是指该命令以后台job的形式运行。剩下的部分为： command&gt;/dev/null 2&gt;&amp;1 这条指令中，/dev/null表示的是一个空设备，也就是command的执行结果重定向到空设备中了，即执行结果不显示。对于前半条命令： command&gt;/dev/null 这条命令中，command是省略了1这个标准输出的，即这条指令相当于： command 1&gt;/dev/null，是command执行的结果标准输出1重定向至/dev/null中 最后我们来看2&gt;&amp;1的作用，由于我们在上面分析可以得出： command&gt;/dev/null等价于command 1&gt;/dev/null 据此可以得到，2&gt;&amp;1是将标准错误重定向至标准输出的位置，即2&gt;/dev/null，由于1并不能代表/dev/null，因此指令不是2&gt;1，而是2&gt;&amp;1，这里的&amp;1就是对标准输出位置的引用： 1&gt;/dev/null 2&gt;/dev/null 1&gt;/dev/null 2&gt;&amp;1 这两者的区别在于前者需要打开两次/dev/null，而第二种方式只需要打开文件一次，效率更高 参考链接Linux里的2&gt;&amp;1究竟是什么：https://blog.csdn.net/ggxiaobai/article/details/53507530]]></content>
+      <categories>
+        <category>linux学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>debug</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Linux下的screen指令使用(相当于多任务窗口)]]></title>
+    <url>%2F2018%2F11%2F13%2FLinux%E4%B8%8B%E7%9A%84screen%E6%8C%87%E4%BB%A4%E4%BD%BF%E7%94%A8(%E7%9B%B8%E5%BD%93%E4%BA%8E%E5%A4%9A%E4%BB%BB%E5%8A%A1%E7%AA%97%E5%8F%A3)%2F</url>
+    <content type="text"><![CDATA[很多初次接触Linux服务器的小白可能跟我有一样的困惑，不像是通常使用的界面化的Windows和Linux一样，我们没有办法打开很多终端去进行各种不同的操作，这里指通过远程连接去接到服务器上，因为有人肯定会说tty终端，当通过ssh连接到服务器上时，我们是没有办法通过Alt+F1的方式进行终端切换的，所以难道我们就没有办法，只能在一个终端上跑任务的时候在一旁嗑瓜子儿干等着吗？ 当 然 不 是！我们强大的Linux系统怎么会容许这种低效的事情发生，神器screen呼之欲出，让我们看看screen为何物 Screen是一款由GNU计划开发的用于命令行终端切换的自由软件。用户可以通过该软件同时连接多个本地或远程的命令行会话，并在其间自由切换。GNU Screen可以看作是窗口管理器的命令行界面版本。它提供了统一的管理多个会话的界面和相应的功能。 会话恢复只要Screen本身没有终止，在其内部运行的会话都可以恢复。这一点对于远程登录的用户特别有用——即使网络连接中断，用户也不会失去对已经打开的命令行会话的控制。只要再次登录到主机上执行screen -r就可以恢复会话的运行。同样在暂时离开的时候，也可以执行分离命令detach，在保证里面的程序正常运行的情况下让Screen挂起（切换到后台）。这一点和图形界面下的VNC很相似。 多窗口（隐式）在Screen环境下，所有的会话都独立的运行，并拥有各自的编号、输入、输出和窗口缓存。用户可以通过快捷键在不同的窗口下切换，并可以自由的重定向各个窗口的输入和输出。Screen实现了基本的文本操作，如复制粘贴等；还提供了类似滚动条的功能，可以查看窗口状况的历史记录。窗口还可以被分区和命名，还可以监视后台窗口的活动。 会话共享 Screen可以让一个或多个用户从不同终端多次登录一个会话，并共享会话的所有特性（比如可以看到完全相同的输出）。它同时提供了窗口访问权限的机制，可以对窗口进行密码保护。 看出来它的强大了吗？ 是的没错，它可以在网络中断的时候依然坚持把任务执行结束，多么良心！！！ 那么我们该怎么使用它呢？ 首先当然是安装1sudo apt-get install screen 完成之后我们就可以愉快的装x了 参考链接：screen命令_Linux screen 命令用法详解:用于命令行终端切换]]></content>
+      <categories>
+        <category>linux学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>tools</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[SisdigFalco 功能测试]]></title>
+    <url>%2F2018%2F10%2F16%2FSisdigFalcoTest%2F</url>
+    <content type="text"><![CDATA[测试环境：系统：安装于xen4.11上的Ubuntu16.04 LTSdocker版本：18.06.1-ce SisdigFalco安装Linux方式安装请参考：https://github.com/falcosecurity/falco/wiki/How-to-Install-Falco-for-Linux容器方式安装请参考：https://github.com/falcosecurity/falco/wiki/How-to-Install-Falco-using-Containers-and-or-Orchestration Docker容器设置 主要是网络部分的设置，能够让外界访问到 12345$ docker run -d -P training/webapp python app.py$ docker container ls -lCONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES... Up 2 seconds 0.0.0.0:49155-&gt;5000 进程树信息获取测试 进程树信息展示的内容是进程之间的关系，在正常的Linux系统中使用pstree命令就可以看到这些信息 在本次测试中，我们需要使用sysdig工具看到容器中的进程树信息 如果容器中已经有了pstree这个工具包，那么可以直接用 docker exec 运行pstree来获取进程树信息 如果容器中没有安装pstree这个工具包，那么只能从sysdig中查看进程的信息，sysdig有过滤出来各种类型的进程，比如网络资源占用率最高的进程等等，但是它并没有提供整体进程树这样一种操作 文件操作信息测试 文件操作实际上主要是查看新增的文件，因为攻击者攻击的过程中，很多时候会下载文件到系统中，而这种文件就是我们所需要的样本文件 在本次测试中，我们需要使用sysdig工具看到容器中的文件操作情况，该需求有如下解决方案： 利用falco监视容器中的所有活动，过滤其中的相关操作 网络报文 网络报文是需要将所有的网络操作的流量dump下来 在本次测试中，我们需要使用sysdig工具来过滤流量，然后能看到所有的网络流量操作，对于网络报文的具体内容： 以binary的形式查看 sysdig -s2000 -X -c echo_fds 以ASCII的形式查看 sysdig -s2000 -A -c echo_fds 样本 样本指的是攻击者上传的样本 在本次测试中，我们使用sysdig工具要对于该项进行测试的话，我们有以下方案： 监控系统的文件操作，如果有下载的操作，可以视为可疑文件进行监视 分析网络流量的内容，对于其中有下载文件的部分进行监视 history信息 history信息指的是对于shell的记录 在本次测试中，我们使用falco工具可以实现对于shell的命令历史的记录，并且能够记录执行命令的具体用户等信息 sysdig输出的格式%evt.num %evt.outputtime %evt.cpu %proc.name (%thread.tid) %evt.dir %evt.type %evt.info evt.num: 增量事件编号 evt.outputtime: 事件时间戳，可自定义 evt.cpu: 捕获事件的CPU编号 proc.name: 生成事件的进程名称 thread.tid: 生成事件的tid，对应于单线程进程的pid evt.dir: 事件的方向（&gt; 输出事件，&lt; 退出事件） evt.type: 事件名称，如 ‘open’ ‘read’ ‘write’ evt.info: 事件的参数列表 附录(Sysdig+Falco使用详解翻译)123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256sysdig -hsysdig -hsysdig version 0.24.1Usage: sysdig [options] [-p &lt;output_format&gt;] [filter]用法：sysdig [选项] [ -p &lt;输出格式&gt;] [过滤器]Options:选项： -A, --print-ascii Only print the text portion of data buffers, and echo end-of-lines. This is useful to only display human-readable data. -A， --print-ascii 仅仅打印数据缓冲区的文本部分，并且重复行结尾。这对于仅仅显示人类可读的数据有用。 -b, --print-base64 Print data buffers in base64. This is useful for encoding binary data that needs to be used over media designed to handle textual data (i.e., terminal or json). -b, --print-base64 用base64编码打印数据缓冲区。这对于编码需要利用媒体设计来处理文本数据的二进制数据是有用的 -B&lt;bpf_probe&gt;, --bpf=&lt;bpf_probe&gt; Enable live capture using the specified BPF probe instead of the kernel module. The BPF probe can also be specified via the environment variable SYSDIG_BPF_PROBE. If &lt;bpf_probe&gt; is left empty, sysdig will try to load one from the sysdig-probe-loader script. -B&lt;bpf规则&gt;, --bpf=&lt;bpf规则&gt; 实现了使用特殊的BPF规则而不是内核模块的现场捕获 BPF规则也能够通过环境变量SYSDIG_BPF_PROBE来定制化。如果bpf规则为空，sysdig会尝试从sysdig-probe-loader脚本中加载一个 -c &lt;chiselname&gt; &lt;chiselargs&gt;, --chisel &lt;chiselname&gt; &lt;chiselargs&gt; run the specified chisel. If the chisel require arguments, they must be specified in the command line after the name. -c &lt;凿子名称&gt; &lt;凿子参数&gt;, --chisel &lt;凿子名称&gt; &lt;凿子参数&gt; 运行特定的凿子。如果凿子需要参数，那么它必须要在名称后被具体化 -cl, --list-chisels lists the available chisels. Looks for chisels in ./chisels, ~/.chisels and /usr/share/sysdig/chisels. -cl, --list-chisels 列出可用的凿子。在./chisels, ~/.chisels和 /usr/share/sysdig/chisels这些文件中寻找凿子 -C &lt;file_size&gt;, --file-size=&lt;file_size&gt; Before writing an event, check whether the file is currently larger than file_size and, if so, close the current file and open a new one. Saved files will have the name specified with the -w flag, with a number after it, starting at 0 and continuing upward. The units of file_size are millions of bytes (10^6, not 2^20). Use the -W flag to determine how many files will be saved to disk. -C &lt;文件大小&gt;, --file-size=&lt;文件大小&gt; 在书写一个事件之前，检查文件现在是否比文件大小大，如果是，关闭现在的文件并打开一个新的。用w参数指定的名称以及附带的数字来命名文件，这个数字从0开始。文件大小的单元有几百万个字节。使用-W参数来确定多少文件会被存储到磁盘中 -d, --displayflt Make the given filter a display one Setting this option causes the events to be filtered after being parsed by the state system. Events are normally filtered before being analyzed, which is more efficient, but can cause state (e.g. FD names) to be lost. -d, --displayflt 给给定的过滤器一个显示操作 设定这个选项能够致使在被系统解析之后事件被过滤。事件在被解析之后能被正常的过滤，这是一种更加高效的方法，但是可能导致状态的缺失 -D, --debug Capture events about sysdig itself, display internal events in addition to system events, and print additional logging on standard error. -D, --debug 捕获sysdig自己的事件，在系统事件之外显示内部事件，并且打印标准错误的额外日志 -E, --exclude-users Don&apos;t create the user/group tables by querying the OS when sysdig starts. This also means that no user or group info will be written to the trace file by the -w flag. The user/group tables are necessary to use filter fields like user.name or group.name. However, creating them can increase sysdig&apos;s startup time. Moreover, they contain information that could be privacy sensitive. -E, --exclude-users 当sysdig开启时询问操作系统不要创建user/group表。这也意味着没有用户或者组的信息会通过-w标志被写到trace文件中。 这个用户/组表对于过滤区域来说是很必要的，比如使用user.name或者group.name。然而，创建它们会增加sysdig的启动时间。并且，它们会包含一些隐私信息。 -e &lt;num_events&gt; If used together with -w option, creates a series of dump files containing only a specified number of events given in num_events parameter each. Used alongside -W flags creates a ring buffer of file containing num_events each. -e &lt;num_events&gt; 如果和-w选项一起使用， -F, --fatfile Enable fatfile mode when writing in fatfile mode, the output file will contain events that will be invisible when reading the file, but that are necessary to fully reconstruct the state. Fatfile mode is useful when saving events to disk with an aggressive filter. The filter could drop events that would the state to be updated (e.g. clone() or open()). With fatfile mode, those events are still saved to file, but &apos;hidden&apos; so that they won&apos;t appear when reading the file. Be aware that using this flag might generate substantially bigger traces files. --filter-proclist apply the filter to the process table a full dump of /proc is typically included in any trace file to make sure all the state required to decode events is in the file. This could cause the file to contain unwanted or sensitive information. Using this flag causes the command line filter to be applied to the /proc dump as well. -G &lt;num_seconds&gt;, --seconds=&lt;num_seconds&gt; Rotates the dump file specified with the -w option every num_seconds seconds. Saved files will have the name specified by -w which should include a time format as defined by strftime(3). If no time format is specified, a counter will be used. If no data format is specified, this can be used with -W flag to create a ring buffer of events. -h, --help Print this page -i &lt;chiselname&gt;, --chisel-info &lt;chiselname&gt; Get a longer description and the arguments associated with a chisel found in the -cl option list. -j, --json Emit output as json, data buffer encoding will depend from the print format selected. -k &lt;url&gt;, --k8s-api=&lt;url&gt; Enable Kubernetes support by connecting to the API server specified as argument. E.g. &quot;http://admin:password@127.0.0.1:8080&quot;. The API server can also be specified via the environment variable SYSDIG_K8S_API. -K &lt;bt_file&gt; | &lt;cert_file&gt;:&lt;key_file[#password]&gt;[:&lt;ca_cert_file&gt;], --k8s-api-cert=&lt;bt_file&gt; | &lt;cert_file&gt;:&lt;key_file[#password]&gt;[:&lt;ca_cert_file&gt;] Use the provided files names to authenticate user and (optionally) verify the K8S API server identity. Each entry must specify full (absolute, or relative to the current directory) path to the respective file. Private key password is optional (needed only if key is password protected). CA certificate is optional. For all files, only PEM file format is supported. Specifying CA certificate only is obsoleted - when single entry is provided for this option, it will be interpreted as the name of a file containing bearer token. Note that the format of this command-line option prohibits use of files whose names contain &apos;:&apos; or &apos;#&apos; characters in the file name. Option can also be provided via the environment variable SYSDIG_K8S_API_CERT. -L, --list-events List the events that the engine supports -l, --list List the fields that can be used for filtering and output formatting. Use -lv to get additional information for each field. --list-markdown like -l, but produces markdown output -m &lt;url[,marathon_url]&gt;, --mesos-api=&lt;url[,marathon_url]&gt; Enable Mesos support by connecting to the API server specified as argument. E.g. &quot;http://admin:password@127.0.0.1:5050&quot;. Marathon url is optional and defaults to Mesos address, port 8080. The API servers can also be specified via the environment variable SYSDIG_MESOS_API. -M &lt;num_seconds&gt; Stop collecting after &lt;num_seconds&gt; reached. -n &lt;num&gt;, --numevents=&lt;num&gt; Stop capturing after &lt;num&gt; events --page-faults Capture user/kernel major/minor page faults -P, --progress Print progress on stderr while processing trace files -p &lt;output_format&gt;, --print=&lt;output_format&gt; Specify the format to be used when printing the events. With -pc or -pcontainer will use a container-friendly format. With -pk or -pkubernetes will use a kubernetes-friendly format. With -pm or -pmesos will use a mesos-friendly format. See the examples section below for more info. -q, --quiet Don&apos;t print events on the screen Useful when dumping to disk. -R Resolve port numbers to names. -r &lt;readfile&gt;, --read=&lt;readfile&gt; Read the events from &lt;readfile&gt;. -S, --summary print the event summary (i.e. the list of the top events) when the capture ends. -s &lt;len&gt;, --snaplen=&lt;len&gt; Capture the first &lt;len&gt; bytes of each I/O buffer. By default, the first 80 bytes are captured. Use this option with caution, it can generate huge trace files. -t &lt;timetype&gt;, --timetype=&lt;timetype&gt; Change the way event time is displayed. Accepted values are h for human-readable string, a for absolute timestamp from epoch, r for relative time from the beginning of the capture, d for delta between event enter and exit, and D for delta from the previous event. -T, --force-tracers-capture Tell the driver to make sure full buffers are captured from /dev/null, to make sure that tracers are completely captured. Note that sysdig will enable extended /dev/null capture by itself after detecting that tracers are written there, but that could result in the truncation of some tracers at the beginning of the capture. This option allows preventing that. --unbuffered Turn off output buffering. This causes every single line emitted by sysdig to be flushed, which generates higher CPU usage but is useful when piping sysdig&apos;s output into another process or into a script. -U, --suppress-comm Ignore all events from processes having the provided comm. -v, --verbose Verbose output. This flag will cause the full content of text and binary buffers to be printed on screen, instead of being truncated to 40 characters. Note that data buffers length is still limited by the snaplen (refer to the -s flag documentation) -v will also make sysdig print some summary information at the end of the capture. --version Print version number. -w &lt;writefile&gt;, --write=&lt;writefile&gt; Write the captured events to &lt;writefile&gt;. -W &lt;num&gt;, --limit &lt;num&gt; Used in conjunction with the -C option, this will limit the number of files created to the specified number, and begin overwriting files from the beginning, thus creating a &apos;rotating&apos; buffer. Used in conjunction with the -G option, this will limit the number of rotated dump files that get created, exiting with status 0 when reaching the limit. If used with -C as well, the behavior will result in cyclical files per timeslice. -x, --print-hex Print data buffers in hex. -X, --print-hex-ascii Print data buffers in hex and ASCII. -z, --compress Used with -w, enables compression for trace files.Output format:By default, sysdig prints the information for each captured event on a single line with the following format: %evt.num %evt.outputtime %evt.cpu %proc.name (%thread.tid) %evt.dir %evt.type %evt.infowhere: evt.num is the incremental event number evt.time is the event timestamp evt.cpu is the CPU number where the event was captured proc.name is the name of the process that generated the event thread.tid id the TID that generated the event, which corresponds to the PID for single thread processes evt.dir is the event direction, &gt; for enter events and &lt; for exit events evt.type is the name of the event, e.g. &apos;open&apos; or &apos;read&apos; evt.info is the list of event arguments.The output format can be customized with the -p switch, using any of thefields listed by &apos;sysdig -l&apos;.Using -pc or -pcontainer, the default format will be changed to a container-friendly one:%evt.num %evt.outputtime %evt.cpu %container.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.infoUsing -pk or -pkubernetes, the default format will be changed to a kubernetes-friendly one:%evt.num %evt.outputtime %evt.cpu %k8s.pod.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.infoUsing -pm or -pmesos, the default format will be changed to a mesos-friendly one:%evt.num %evt.outputtime %evt.cpu %mesos.task.name (%container.id) %proc.name (%thread.tid:%thread.vtid) %evt.dir %evt.type %evt.infoExamples:样例： Capture all the events from the live system and print them to screen $ sysdig 从live系统中捕获所有的事件并且把他们打印到屏幕上 $ sysdig Capture all the events from the live system and save them to disk $ sysdig -w dumpfile.scap 从live系统中捕获所有的事件并且把他们存储到磁盘中 $ sysdig -w dumpfile.scap Read events from a file and print them to screen $ sysdig -r dumpfile.scap 从文件中读取事件并把他们打印到屏幕上 $ sysdig -r dumpfile.scap Print all the open system calls invoked by cat $ sysdig proc.name=cat and evt.type=open 打印所有的使用了cat的开放系统调用 $ sysdig proc.name=cat and evt.type=open Print the name of the files opened by cat $ sysdig -p&quot;%evt.arg.name&quot; proc.name=cat and evt.type=open 打印所有的被cat打开的文件的名称 $ sysdig -p&quot;%evt.arg.name&quot; proc.name=cat and evt.type=open falco用法123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293falco version 0.12.1Usage: falco [options]Options: -h, --help Print this page 打印这页的内容 -c Configuration file (default /mnt/workspace/falco-build-stable/label/builder-agent-64/falco/falco.yaml, /etc/falco/falco.yaml) 配置文件（默认 /mnt/workspace/falco-build-stable/label/builder-agent-64/falco/falco.yaml,/etc/falco/falco.yaml） -A Monitor all events, including those with EF_DROP_FALCO flag. 监控所有事件，包括那些带有EF_DROP_FALCO标签的 -d, --daemon Run as a daemon 以后台方式运行 -D &lt;pattern&gt; Disable any rules matching the regex &lt;pattern&gt;. Can be specified multiple times. Can not be specified with -t. 禁用所有匹配到正则表达式模式的规则，这个模式可以被多次具体化，但是它不能被具体化加上-t参数 -e &lt;events_file&gt; Read the events from &lt;events_file&gt; (in .scap format) instead of tapping into live. 从事件文件（形式为.scap）中读取事件，而不是利用实况 -k &lt;url&gt;, --k8s-api=&lt;url&gt; Enable Kubernetes support by connecting to the API server specified as argument. E.g. &quot;http://admin:password@127.0.0.1:8080&quot;. The API server can also be specified via the environment variable FALCO_K8S_API. 通过连接参数中具体指明的API服务器实现Kubernetes支持。例：&quot;http://admin:password@127.0.0.1:8080&quot;。这个API服务器也能够通过环境变量FALCO_K8S_API中指定。 -K &lt;bt_file&gt; | &lt;cert_file&gt;:&lt;key_file[#password]&gt;[:&lt;ca_cert_file&gt;], --k8s-api-cert=&lt;bt_file&gt; | &lt;cert_file&gt;:&lt;key_file[#password]&gt;[:&lt;ca_cert_file&gt;] Use the provided files names to authenticate user and (optionally) verify the K8S API server identity. Each entry must specify full (absolute, or relative to the current directory) path to the respective file. Private key password is optional (needed only if key is password protected). CA certificate is optional. For all files, only PEM file format is supported. Specifying CA certificate only is obsoleted - when single entry is provided for this option, it will be interpreted as the name of a file containing bearer token. Note that the format of this command-line option prohibits use of files whose names contain &apos;:&apos; or &apos;#&apos; characters in the file name. 使用提供的文件名来认证用户以及（可选）确认k8s API服务器的身份。 每一个路径都要指定完全（绝对路径，或者相对于当前的目录） -L Show the name and description of all rules and exit. 显示所有规则的名字和描述以及退出 -l &lt;rule&gt; Show the name and description of the rule with name &lt;rule&gt; and exit. 显示特定的规则的名字和描述以及退出 -m &lt;url[,marathon_url]&gt;, --mesos-api=&lt;url[,marathon_url]&gt; Enable Mesos support by connecting to the API server specified as argument. E.g. &quot;http://admin:password@127.0.0.1:5050&quot;. Marathon url is optional and defaults to Mesos address, port 8080. The API servers can also be specified via the environment variable FALCO_MESOS_API. 通过连接参数指定的API server来允许Mesos支持。例：&quot;http://admin:password@127.0.0.1:5050&quot;。Marathon url是可选的，并且对于Mesos地址是默认的，端口是80080。这个API server也能够通过环境变量FALCO_MESOS_API来指定。 -M &lt;num_seconds&gt; Stop collecting after &lt;num_seconds&gt; reached. 在&lt;num_seconds&gt;到达后停止收集 -o, --option &lt;key&gt;=&lt;val&gt; Set the value of option &lt;key&gt; to &lt;val&gt;. Overrides values in configuration file. &lt;key&gt; can be a two-part &lt;key&gt;.&lt;subkey&gt; 设置选项的值&lt;key&gt;到&lt;val&gt;。覆盖值到配置文件。&lt;key&gt;能够是两部分&lt;key&gt;.&lt;subkey&gt; -p &lt;output_format&gt;, --print=&lt;output_format&gt; Add additional information to each falco notification&apos;s output. With -pc or -pcontainer will use a container-friendly format. With -pk or -pkubernetes will use a kubernetes-friendly format. With -pm or -pmesos will use a mesos-friendly format. Additionally, specifying -pc/-pk/-pm will change the interpretation of %container.info in rule output fields See the examples section below for more info. 增加附加信息到每个falco通知的输出。 用-pc或者-pcontainer会使用容器友好的形式。 用-pk或者-pkubernetes会使用kubernetes友好的形式。 用-pm或者-pmesos会使用mesos友好的形式。 另外，指定-pc/-pk/-pm会改变规则输出中%container.info的完整性 查看下面的样例区得到更多信息 -P, --pidfile &lt;pid_file&gt; When run as a daemon, write pid to specified file 当在后台运行时，写进程的pid到一个特定文件 -r &lt;rules_file&gt; Rules file/directory (defaults to value set in configuration file, or /etc/falco_rules.yaml). Can be specified multiple times to read from multiple files/directories. 规则文件/目录（默认来设置配置文件或者是/etc/falco_rules.yaml中的值）。能够指定多次来阅读复杂的文件或者目录 -s &lt;stats_file&gt; If specified, write statistics related to falco&apos;s reading/processing of events to this file. (Only useful in live mode). 如果被指定，写与falco的读取或者进程事件相关的数据到这个文件中（只在live模式下有效） -T &lt;tag&gt; Disable any rules with a tag=&lt;tag&gt;. Can be specified multiple times. Can not be specified with -t. 禁止所有带有标签的规则。能够被具体化很多次。不能被-t指定。 -t &lt;tag&gt; Only run those rules with a tag=&lt;tag&gt;. Can be specified multiple times. Can not be specified with -T/-D. 仅仅运行这些规则用一个标签。能够被具体化多次。不能被-T/-D指定。 -U,--unbuffered Turn off output buffering to configured outputs. This causes every single line emitted by falco to be flushed, which generates higher CPU usage but is useful when piping those outputs into another process or into a script. 关闭输出缓冲区来配置输出。这使得falco的每行输出都被flush，这导致了更高的CPU占用率，但是当把这些输出输送到另一个进程或者脚本的时候这样就更加有效了 -V,--validate &lt;rules_file&gt; Read the contents of the specified rules(s) file and exit Can be specified multiple times to validate multiple files. 读取特定规则文件的内容以及退出，对于有效的文件能够被具体化多次 -v Verbose output. 冗余输出 --version Print version number. 打印出版本号 falco规则写法 falco是原生支持container的，并且它提供包括网络，进程，文件等等信息的监控，具体的监控方式可以自己制定规则来实现 falco最重要的内容即为其规则文件，falco需要这个规则文件来实现多样的监控 1falco 规则编写解析：]]></content>
+      <categories>
+        <category>docker</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>docker</tag>
+        <tag>sisdig</tag>
+        <tag>falco</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[磁盘 RAID 小解]]></title>
+    <url>%2F2018%2F10%2F11%2F%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%A3%81%E7%9B%98RAID-1%2F</url>
+    <content type="text"><![CDATA[一句话概括主要是针对几种不同的磁盘 RAID 方式进行原理性的介绍，包括 RAID0，RAID1，RAID5 和 RAID10 最近有一个搭建git服务器的小任务，因为手头的服务器只有4T的硬盘，这肯定是不够做一个存储服务器的，于是就在网上购入了一批硬盘（5400r/s，性能捉急，但是做存储还是够用了，SATA接口），到手后服务器的磁盘构造为： 4T SAS硬盘x1，4T SATA硬盘x5，一共有6块硬盘 由于服务器安装系统需要先做磁盘的 RAID（Redundant Array of Independent Disks，磁盘冗余阵列），我原本想的是这六块磁盘做 RAID1，这样好像就是原来一半的容量，但是我在 BIOS 启动，按 CTRL+R 进入 RAID 设置界面之后就发现了问题，因为我在选择完 RAID 选项之后就发现那个SAS的硬盘变成了不可选取的状态，但是我开始的时候并没有在意这个问题，这里埋着一个小坑，下面我依次说明一下各个RAID的原理以及设置的详情 RAID 模式介绍RAID0 最快，最不安全的存储方式，所需的磁盘数 &gt;=1 即可 RAID0 有两种，一种是非并发，一种是并发 非并发模式就跟普通的硬盘一样，一个硬盘存储用完就接着往下一个硬盘上存储，这样并没有提高存储的效率，也没有额外的安全考虑，现在一般的 RAID0 都是做的并发式存储，当然如果只有一块硬盘，那也只能做非并发了 并发模式这种模式就与非并发模式不同了，这种一般会有大于等于 2 块硬盘，都做 RAID0，它将数据按照磁盘的个数分段，然后在存数据和取数据的时候就按分段去进行，相当于是一个磁盘做存取时速度的 n 倍 下面是 RAID0 并发模式工作的一个演示图： RAID1 最慢，最安全的存储方式，注意如果是两个不一样大小的磁盘做 RIAD1，那么做完之后，RAID1 的容量按小的那块来算，所需的磁盘数 = 2 RAID5 RAID0 RAID1 的折中方案，也是 RAID2,3,4 的升级方案，现在机器上一般提供的都是 RAID0,1,5,10 这些方案，其他的比较少提到，所需的磁盘数 &gt;= 3，假如只有三块硬盘的情况下，在每次存储数据的时候，均有两块硬盘上会进行分段的数据存储，剩下的那块硬盘上面则是存储的存储校验信息，这样在任意一块硬盘损坏的情况下，都可以通过其他硬盘进行数据的恢复，RAID5 的存储为单一硬盘的 n-1 倍 下面是RAID5工作的一个演示图： RAID10 RAID0 和 RAID1的结合体，既有RAID0的速度，又有RAID1的安全性保障，但是美中不足的是磁盘的消耗比较大，其原理为每两个磁盘做RIAD1，然后将这一组RAID1的两个磁盘作为一个逻辑磁盘，再与其他的做RAID0，所以这种方案的磁盘数：4+2*n (n&gt;=0)，RAID10 的存储为单一硬盘的 50% 下面表格为这几种 RAID 模式的速度及容量(相比于n个单一硬盘)比对 RAID 模式 数量限制 容量 速度 RAID0 &gt;= 1 100% n倍(并发模式) RAID1 &gt;= 2 50% 一样 RAID5 &gt;= 3 n-1/n n-1 倍 RAID10 &gt;= 4 50% 一样 RAID方案选择经过上面简单的解释，我们对于磁盘阵列的安排方式也有了一个比较直观的认识，我现在的需求是： 尽量保证磁盘数据的安全 在保证安全的基础上尽量扩大存储空间 综合考虑上面两点之后，我的选择当然是RAID10，但是等到我选择这种阵列模式的时候，我就发现原来的6块磁盘只有5块能选中，SAS那块一直无法选取，隐隐觉得不对劲，查了一点资料才知道SAS和SATA不能在一个RAID里，所以我就把那块SAS换成了一个SATA的硬盘，果然就什么问题都没有了。。。 如果手头上没有这样的设备的小伙伴，那就只能分开做成两个RAID咯 但是做RAID10真的好慢啊]]></content>
+      <categories>
+        <category>服务器配置</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>server</tag>
+        <tag>RAID</tag>
+        <tag>磁盘</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[PPT制作小技巧]]></title>
+    <url>%2F2018%2F10%2F04%2Fppt%E5%88%B6%E4%BD%9C%2F</url>
+    <content type="text"><![CDATA[前言：前几天有一个很突然的ppt制作的任务，对于我这种有强迫症的患者来说简直是噩梦，我做ppt可以说是很慢了，因为确实对于很多小细节我都不想放过，所以会思考很久去挑选一个合适的表现形式，为了实现老师说的几个看似很简单的小功能，1号晚上跟大帅两个人做了很久终于做了一版差强人意的版本，这里把制作中的一些经验技巧写下来可以在以后的工作学习中使用。 正文部分一共分为x个主要的技术点： 查看全部的元素的方式开始 &gt; 选择 &gt; 选择窗格，选中即可看到所有的添加元素以及组合右侧的选择窗格中会展示所有你添加到该ppt中的内容，如果你在做一个比较复杂的图片导致了很多的覆盖产生，那么，你可以点击全部隐藏之后再从选中的内容中去筛选被覆盖而无法选中的部分 动画添加依据上一条的选择方式，我们可以查看到所有的元素或组合，选中元素或组合之后，我们就可以添加动画动画 &gt; 高级动画，在这个小框内可以看到 动画窗格，点开之后可以类似于选择窗格一般展示所有已经添加的动画，动画一共有四种： 进入：表示的是这个元素或组合出现的方式 强调：表现的是这个元素或组合出现之后的展现方式 退出：表现的是这个元素或组合退出的方式 动作路径：表现的是这个元素或组合运动的方式 动画排序在上一条添加完动画之后，可以选择动画的展示时序，对于各个动画之间的顺序如果有所要求，就需要调整动画 &gt; 计时，在这个小框内可以看到 开始 单击时：表示这个动画需要一次单击才能展示 与上一动画同时：表示这个动画与上一个动画同时展示 上一动画之后：表示这个动画会紧接着上一动画展示，无需单击操作 持续时间：表示这个动画的时间长度 延迟：表示这个动画与上一动画的时间间隔 未完待续。。。]]></content>
+      <categories>
+        <category>现学小技能</category>
+      </categories>
+      <tags>
+        <tag>office</tag>
+        <tag>ppt</tag>
+        <tag>powerpoint</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[虚拟机网络实现原理]]></title>
+    <url>%2F2018%2F10%2F03%2F%E8%99%9A%E6%8B%9F%E6%9C%BA%E7%BD%91%E7%BB%9C%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86%2F</url>
+    <content type="text"><![CDATA[摘要：本文旨在解释现有比较流行的虚拟化解决方案（xen，kvm，VMware）中虚拟机网络的解决方式与原理，主要包括Bridge（桥接模式），NAT（Network Address Trans，网络地址转换模式），Host-Only（仅主机模式）等几种常见的虚拟机网络实现方案的原理与工作方式，文章包括原理解释以及实验验证两个部分 Bridge（桥接模式） 概念及原理：bridge方式即虚拟网桥的网络连接方式，这种方式下客户机和子网里的机器能够互相通信，使得虚拟机成为网络中具有独立IP的主机]]></content>
+      <categories>
+        <category>虚拟化学习</category>
+      </categories>
+      <tags>
+        <tag>网络</tag>
+        <tag>虚拟机</tag>
+        <tag>虚拟化</tag>
+        <tag>ovs</tag>
+        <tag>nat</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Linux自启动设置 && shell脚本编写]]></title>
+    <url>%2F2018%2F08%2F17%2F%E8%87%AA%E5%90%AF%E5%8A%A8%E5%8F%8Ashell%E7%BC%96%E5%86%99%E5%B0%8F%E7%BB%93%2F</url>
+    <content type="text"><![CDATA[前情提要 由于本次的功能需求需要在Linux机器每次重启之后运行相应的脚本，因此需要设置开机自启动 auto_monitor.sh脚本需要root权限 auto_mykibana.sh脚本需要等待elasticsearch启动之后才能执行 Linux自启动设置 方案一：设置/etc/init.d中的内容，然后使用update-rc.d来进行开机自启动设置 背景知识： Linux系统的主要启动步骤 # 读取MBR信息，启动Boot Manager # 加载系统内核，启动init进程，init进程使Linux的根进程，所有的系统进程都是它的子进程 # init进程读取 /etc/inittab 文件中的信息，进入预设的运行级别。通常情况 /etc/rcS.d/ 目录下的启动脚本首先被执行，然后是 /etc/rcN.d/ 目录 # 根据 /etc/rcS.d/ 文件夹中对应的脚本启动Xwindows服务器xorg，Xwindows为Linux的图形界面 # 启动登陆管理器，等待用户登陆 Ubuntu中的运行级别 level 0 # 停机 level 1 # 单用户 level 2&amp;3 # 多用户 level 4 # 用户自定义 level 5 # 系统一般运行状态 level 6 # 重启 注释：这里写的这些级别这样说可能不太容易理解，但是实际上有一个很简单的理解方式 init 0 # 关机 init 1 # init 2&amp;3 # 开启命令行界面 init 4 # init 5 # 开启图形界面 init 6 # 重启 脚本编写规范及样例，如：xxx.sh #! /bin/bash ### BEGIN INIT INFO #Provides: touchfile #Required-Start: $all #Required-Stop: $all #Default-Start: 2 3 4 5 #Default-Stop: 0 1 6 #Short-Description: Run Touchfile #Description: Run Touchfile ### END INIT INFO TOUCHFILE=&quot;/var/tmp/touch.file&quot; case &quot;$1&quot; in start) echo &quot;Creating $TOUCHFILE&quot; touch $TOUCHFILE ;; stop) echo &quot;Removing $TOUCHFILE&quot; touch $TOUCHFILE ;; restart) echo &quot;Recreating $TOUCHFILE&quot; rm $TOUCHFILE touch $TOUCHFILE ;; reload) echo &quot;Re-Touching $TOUCHFILE&quot; touch $TOUCHFILE ;; *) echo &quot;Usage: touchfile.sh &lt;start|stop|restart|reload&gt;&quot; ;; esac exit 0 编写之后的操作 root$: chmod a+x xxx.sh # 使其变成可执行文件 root$: update-rc.d xxx.sh defaults 90 # 添加开机启动项，启动次序为第90个 root$: update-rc.d xxx.sh -f remove # 删除开机启动项 方案二：设置/lib/systemd/system中的内容，编写xxx.service，然后利用systemctl命令设置服务 service的编写规范及样例: [Unit] Description = start mykibana # 服务描述，随便写 After = network.target # 开机时在网络服务启动后开启 [Service] User = root # 服务开启用户类型 ExecStart = /bin/sh /home/mykibana.sh # 服务具体执行内容 [Install] WantedBy = multi-user.target 服务写完后，注册服务的指令及含义： $: systemctl enable xxx.service # 设置服务开机启动 $: systemctl start xxx.service # 开启服务 $: systemctl stop xxx.service # 关闭服务 $: systemctl disable xxx.service # 删除服务 服务注册后，在开机后查看服务的运行状态及日志信息 $: systemctl status xxx # 查看服务的运行状态及日志信息 方案三：对于rc.local进行修改，此处不建议，由于该方案与方案一类似均为兼容性设置，现在的主流设置为方案二 其他内容 pyinstaller将python编译为可执行文件 $: pip install pyinstaller #这里注意不是apt安装 $: pyinstaller -F xxx.py #这里记得加上-F，不然更换路径后就无法找到依赖，这个选项是只生成一个可执行文件 ### 注释：生成的可执行文件在dist目录下 更换ssh默认端口 修改/etc/ssh/sshd_config文件 port 22 --&gt; port xxx ssh互相免认证 首先在两边都生成密钥： $: ssh-keygen -t rsa 然后使用命令将公钥互相拷贝过去: $: ssh-copyid -i username@ip 修改StrictHostKeyChecking ask 中的内容为： StrictHostKeyChecking no inotify使用方法 rsync使用方法 这两者结合起来就可以实现文件的实时同步]]></content>
+      <categories>
+        <category>linux自动化运维</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>shell</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[交换机工作模式]]></title>
+    <url>%2F2018%2F08%2F12%2F%E4%BA%A4%E6%8D%A2%E6%9C%BA%E7%9A%84%E5%B7%A5%E4%BD%9C%E6%A8%A1%E5%BC%8F%2F</url>
+    <content type="text"><![CDATA[常见的工作模式主要有：存储转发交换，直通转发， 存储转发交换存储和转发交换（Store And Forward Switching）是在帧被转发到适当的端口之前就被完全处理，一般交换机多采用这种方式转发数据。这种方式可以支持不同速度的端口间的转发，具体工作方式如下： 交换机通过读取整个数据帧并将其存储在交换机的内存缓冲区中 交换机执行循环冗余码校验（CRC） 注：若检测到该帧出现差错则丢弃帧，帧必须存储到网络资源可以用来转发这条信息 取出该帧的目的地址，通过MAC地址表获取输出端口 将数据帧交付到目的输出端口，转发该帧 可以明显地看出来，在这种情况下，转发机制是能够支持不同速度的端口的 直通转发直通转发（Cut-Through Switching）是交换机最快速的转发方式，只要得知了数据帧的目的MAC地址（帧的前6个字节），交换机即开始向目的端口转发数据，后续数据每到一个字节就转发一个字节，具体工作方式如下： 交换机将目的地址（帧的前6个字节）复制到缓冲区中 查找MAC地址表获得输出端口 将数据帧交付到目的输出端口转发该帧，后续数据每收到一个字节就转发一个字节 注：对于所有数据帧（包括正常帧，错误帧，残帧，以及超长帧），只要其大小有6个字节，就会得到转发 可以看到，这种方式没有帧检查，可靠性较低，但是转发速度快 准直通转发模式（Interim Cut-Through Switch）/无碎片模式（Fragment-Free）/Runt-Free模式转发前读取帧的前64个字节，即转发长度至少为64B，避免了残帧的转发 智能交换模式（Intelligent）/自适应直通转发模式交换机能根据所监控网络中错误包传输的数量，自动智能改变为存储转发交换，比如每秒错误少于20个，就自动采用直通转发；如果错误大于20或更多，则采用存储转发，直到错误数量为0，再切换回直通转发]]></content>
+      <categories>
+        <category>网络组件学习</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>交换机</tag>
+        <tag>网络</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Hello World]]></title>
+    <url>%2F2017%2F01%2F01%2Fhello-world%2F</url>
+    <content type="text"><![CDATA[Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick StartCreate a new post1$ hexo new "My New Post" More info: Writing Run server1$ hexo server More info: Server Generate static files1$ hexo generate More info: Generating Deploy to remote sites1$ hexo deploy More info: Deployment]]></content>
+  </entry>
+  <entry>
+    <title><![CDATA[大宝小宝三周年纪念]]></title>
+    <url>%2F1019%2F04%2F19%2F%E4%B8%89%E5%91%A8%E5%B9%B4%E5%B0%8F%E7%BA%AA%E5%BF%B5%2F</url>
+    <content type="text"><![CDATA[时光飞逝，与小宝在一起已经三年啦！ 仅以本文纪念一下与小宝在一起的美好时光~ 古人以三为众，一生二，二生三，三生万物； 一为始，二为进，三则开启了新的篇章，就如同我们的生活一样，确实在新的地方我们开启了新的篇章~ 共处三年，我和小宝都有着各自不同的收获； 小宝如是说：“跟大宝在一起的三年，我收获了更有条理的处事方式，收获了更健康的生活方式，收获了更平静的心态，收获了每日新鲜的体验~” 而在我这边，与小宝共处的时光则让我收获了莫大的成长，与小宝在一起最大的收获便是性格上的成熟，明白了作为一个男人，心胸宽广的真正含义，其次则是被小宝阳光积极的处事态度所感染，我在性格上有那么一点点悲观和拖延，但是在小宝的影响下，这些不足基本上被扫空啦~ 在我心中，爱是一种能够互相进步的包容，这包含着两层意思，一则是两人的进步，两人互相去粗取精，变得更加优秀，二则是两人的互相包容，因为两人从小的生活环境各方面都不同，有些矛盾争端在所难免，但若为了一些鸡毛蒜皮的小事每天争执不休，那两人的结合注定是个悲剧，因此，包容与成长是我现阶段心中对爱的理解。 愿以此作为新生活的开始，给以后的日子添加更多的乐趣和精彩！]]></content>
+      <categories>
+        <category>life</category>
+        <category>love</category>
+      </categories>
+      <tags>
+        <tag>生活</tag>
+        <tag>爱情</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[如何在 20 分钟内发现生命的目的]]></title>
+    <url>%2F1019%2F04%2F18%2F20%E5%88%86%E9%92%9F%E5%8F%91%E7%8E%B0%E7%94%9F%E5%91%BD%E7%9A%84%E6%84%8F%E4%B9%89%2F</url>
+    <content type="text"><![CDATA[本文译自 https://github.com/Hermioneyuzijin/material/issues/58Hermioneyuzijin/material#58 ，如需转载，请联系作者 以下为正文部分内容 如何才能发现你生命真正的目的？我并不是在说你的工作，你的日常任务抑或是你的长期目标。我说的是你存在的真正原因。 有可能你是一个相当虚无主义的人，你的信仰是你没有目标，生命也没有目的。这些都不重要，不相信生命的目的并不妨碍你发现它，就好像你不相信重力的存在不妨碍你会摔跤一样。但是不相信生命的目的可能会让发现这个过程放缓，因此如果你是一个虚无主义者，你可能需要把 20 分钟修改成 40 分钟（或者如果你非常固执，那么你可以修改为 60 分钟）。因为你可能不相信你有目标，所以你也不会相信我说的话，但即便如此，花费一个小时的时间来做这样一件事又有什么风险呢？ 这里我用一个李小龙的故事作为引子。曾经有一位大师级的武术演员去找李小龙，请求他教给自己所有武术知识。李小龙拿来了两个装满水的杯子，说道：“第一杯水，代表着你对武术的所有知识，第二杯水，代表着我对武术的所有知识。如果你想要用我的知识填满你的杯子，那么首先你需要把你的杯子清空。”同样地，如果你想要发现你生命的真正目的，你必须把你脑子里的所有的伪目的清空（这包括你没有目标这种想法）。 那么到底如何发现你生命中的目的呢？虽然现在有很多种方法，但是有一些方法相当的复杂，我们选取了一种极为简单的，任何人都能够做到的方法。你越接纳这些流程，越希望它生效，那么它就会更快地在你身上生效。但是你如果并不接纳这种方法，或者是你对这种方法心存疑惑，抑或是你觉得它很愚蠢，很浪费时间，这些都不会影响它得到最终结果，只不过在这种情况下，花费的时间会更多罢了。 下面就是如何进行： 1 拿出一张表格纸或者打开 word，你能够在上面书写做记录 2 写下标题，“我生命的真实目的是什么？” 3 写下一个在你脑子里冒出来的答案（任何答案都行）。它不必是一个完整的句子，一个词即可。 4 重复第三步直到某个答案让你哭泣。那么这个大难就是你生命的目的。 方法就是这样。它不管你是一个法律顾问，工程师还是健身教练。对于一些人来说，这个方法会得到完美的结果。但对于另一些人来说，这个方法会显得非常愚蠢。在测试中，通常会有 15-20 分钟用来清理你脑子里对于生命目的相关考虑的所有混杂事物的和社会条件等，有一些伪答案这时会出现在你的思维和记忆中，但是当真正的答案来临的时候，你会发现它是完全来自一个不同的源头。 对于那些固执的生活在无意识中的人来说，这个测试会有大部分时间得到的都是伪答案，这让总时间可能超过一个小时。但是如果你肯坚持的话，在 100 次或 200 次甚至是 500 次回答之后，你将会被一个能够让你情绪澎湃起来的答案击中，这个答案会闯入你的脑海。如果你从来没有做到这一点，那它听起来会非常愚蠢。所以就让它愚蠢吧，但是不管怎么样做一下尝试。 当你在进行测试的过程中，你的有些答案会非常的相似，你还有可能重写了之前的答案，然后你会调整方向并且在新的主题上写出 10-20 条答案。这也是没有问题的，只要你在持续不断地写，你完全可以列出任何你脑子里冒出来的东西。 在这个测试过程中你可能会遇到一些困难点（典型的比如在写下 50-100 个答案之后），你会变得想要退出，并且你无法看到这些答案收敛到一点上，你感觉非常想站起来并且找个借口做别的事情。这是很正常的，克服这种阻力，继续写下去，这种阻力感最终会消失。 你也会在测试过程中发现一些答案给你一些情感上的小触动，但是又不至于让你哭出来，因为这些答案距离最终的还有一些距离。把这些答案标上高亮，这样你能够容易地回到他们附近来产生新的排列。他们每一个都反映了你的一些生命的目的，但是他们作为单独的个体可能并不完整。当你开始得到这种答案的时候，意味着你在变得更兴奋。继续下去。 这个测试进行的时候很重要的事情就是保证独处且不被打扰。如果你是一个虚无主义者，那么请放轻松来做回答，“我没有生活目标”或者“生活是没有目的的”，就从这种回答开始。如果你坚持下去，那么你最终还是会得到答案。 我当时进行这个测试的时候，一共花了 25 分钟，最后我在第 106 步的时候得到了我的答案。答案的一些必要部分分别在第 17，39 和 53 步获得，然后将它们在第 100-106 步的过程中进行一定的扩充，精炼。我在差不多 55-60 步左右的时候感觉到阻力（想要站起来做点别的事情，希望这个过程失败，感觉到非常不耐烦和愤怒）。并且在第 80 步的时候我花了 2 分钟的时间休息，闭一会儿眼睛，放松，清空我的思维，然后把注意力集中在即将来到的答案上——这个短暂的休息很有用，因为在这之后的答案变得明显清晰了很多。 我自己的答案如下： 勇敢和自律地生活，用爱和热情产生共鸣，唤醒自己和别人的灵感，并且平静地死去。当你发现了自己对于这个问题很独特的答案之后，你就会从你心底里产生共鸣。这些词语对你来说会有特殊的能量，并且无论何时你再次读到它们，你都会感受到这种能量。 发现你的目的是简单的部分。难的部分是把它作为你日常行为的准则，并且努力去践行你的目标。 如果你想知道为什么这个小测试会有效，那么请先把这个问题暂时放到一边，直到你完成这个测试。一旦你完成了测试，你就可能对于这个测试为什么有效有了自己的答案。很有可能你问 10 个不同的人这个测试为什么会有效，你会得到 10 种不同的答案，并且这些答案带着自己的信仰和对真理的独特理解。 很显然，如果你在测试没有出结果之前就退出了，那么这个测试肯定不会奏效。我预估大概有 80%-90% 的人会在一个小时之内完成这个测试。如果你的想法真的很坚定，并且它阻碍这个测试的执行，那么它可能会花费你 5 轮大概 3 个小时的时间，但是我怀疑这样的人会容易很早退出（比如 前 15 分钟）或者甚至完全没有进行尝试。但是如果你被这篇博客吸引了（并且没有把它从你生活中禁止掉），那么就无法确定你是否会进入这个组织里了。 放手去做吧！至少你可以从这中间学到一件事：你生命的真正目的或者你可以取消这篇博客的订阅。]]></content>
+      <categories>
+        <category>life</category>
+      </categories>
+      <tags>
+        <tag>生活</tag>
+        <tag>文艺</tag>
+      </tags>
+  </entry>
+</search>
